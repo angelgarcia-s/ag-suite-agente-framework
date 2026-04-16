@@ -1,0 +1,907 @@
+#!/bin/bash
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  AG Suite Agent Framework — CLI v1.0.2
+# ─────────────────────────────────────────────────────────────────────────────
+
+VERSION="1.0.2"
+
+_resolver_ruta_framework() {
+    local origen="$0"
+    while [ -L "$origen" ]; do
+        local dir="$(dirname "$origen")"
+        origen="$(readlink "$origen")"
+        [[ "$origen" != /* ]] && origen="$dir/$origen"
+    done
+    echo "$(cd "$(dirname "$origen")/.." && pwd)"
+}
+RUTA_FRAMEWORK="$(_resolver_ruta_framework)"
+
+_encontrar_raiz() {
+    local dir="$PWD"
+    while [ "$dir" != "/" ]; do
+        if [ -f "$dir/.git/config" ] || [ -f "$dir/docs/.agents/agent-config.md" ]; then
+            echo "$dir"; return 0
+        fi
+        dir="$(dirname "$dir")"
+    done
+    echo "$PWD"
+}
+
+RUTA_PROYECTO="$(_encontrar_raiz)"
+RUTA_AGENTS="$RUTA_PROYECTO/docs/.agents"
+RUTA_SCRIPTS="$RUTA_PROYECTO/scripts"
+
+VERDE="\033[0;32m"
+AMARILLO="\033[0;33m"
+ROJO="\033[0;31m"
+AZUL="\033[0;34m"
+CYAN="\033[0;36m"
+MAGENTA="\033[0;35m"
+GRIS="\033[0;90m"
+NEGRITA="\033[1m"
+RESET="\033[0m"
+
+ok()        { echo -e "  ${VERDE}✅${RESET} $1"; }
+warn()      { echo -e "  ${AMARILLO}⚠️ ${RESET} $1"; }
+error()     { echo -e "  ${ROJO}❌${RESET} $1"; }
+info()      { echo -e "  ${AZUL}›${RESET}  $1"; }
+skip()      { echo -e "  ${GRIS}⏭️  $1${RESET}"; }
+separador() { echo -e "${GRIS}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"; }
+linea_fina(){ echo -e "${GRIS}────────────────────────────────────────────────${RESET}"; }
+
+tiene_claude() { command -v claude &>/dev/null; }
+tiene_iterm()  { osascript -e 'tell application "iTerm2" to version' &>/dev/null 2>&1; }
+
+leer_config() {
+    grep "^$1=" "$RUTA_AGENTS/agent-config.md" 2>/dev/null | cut -d= -f2 | tr -d '"' | xargs
+}
+leer_status() {
+    grep "^$1=" "$RUTA_AGENTS/status.md" 2>/dev/null | cut -d= -f2 | tr -d '"' | xargs
+}
+nombre_proyecto() { local n="$(leer_config nombre)"; echo "${n:-Proyecto}"; }
+
+notificar() {
+    osascript -e "display notification \"$2\" with title \"$1\" sound name \"${3:-Glass}\"" 2>/dev/null || true
+}
+
+spinner() {
+    local pid=$1 msg="$2"
+    local frames=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
+    local i=0
+    while kill -0 "$pid" 2>/dev/null; do
+        printf "\r  ${AZUL}${frames[$((i % 10))]}${RESET} $msg"
+        sleep 0.1
+        i=$((i + 1))
+    done
+    printf "\r%-60s\r" " "
+}
+
+icono_estado() {
+    case "$1" in
+        idle)           printf "${GRIS}⏸  idle${RESET}" ;;
+        ready)          printf "${AMARILLO}🟡 ready ← tiene trabajo${RESET}" ;;
+        in_progress)    printf "${CYAN}🔄 en progreso${RESET}" ;;
+        "done"*)        printf "${VERDE}✅ done${RESET}" ;;
+        needs_fix)      printf "${ROJO}🔴 needs_fix${RESET}" ;;
+        awaiting_human) printf "${MAGENTA}👀 esperando revisión${RESET}" ;;
+        coordinating)   printf "${AZUL}🧠 coordinando${RESET}" ;;
+        *)              printf "${GRIS}${1:- — }${RESET}" ;;
+    esac
+}
+
+# ─── Construir contenido del dashboard en una variable ───────────────────────
+# Evita cualquier render parcial — todo se construye primero, luego se imprime
+_construir_dashboard() {
+    local auto="$1"
+    local out=""
+
+    local NOMBRE ADR TITULO BRANCH INICIADO
+    local ORCH BE FE CTX FDOCS
+    local BLOCKER_AG BLOCKER_DET HANDOFF_MSG APROBACION
+    local BE_ISSUES FE_ISSUES COMPLETADOS
+
+    NOMBRE="$(nombre_proyecto)"
+    ADR="$(leer_status adr)"
+    TITULO="$(leer_status titulo)"
+    BRANCH="$(leer_status branch)"
+    INICIADO="$(leer_status iniciado)"
+    ORCH="$(leer_status orchestrator)"
+    BE="$(leer_status backend)"
+    FE="$(leer_status frontend)"
+    CTX="$(leer_status contexto)"
+    FDOCS="$(leer_status featuredocs)"
+    BLOCKER_AG="$(leer_status blocker_agente)"
+    BLOCKER_DET="$(leer_status blocker_detalle)"
+    HANDOFF_MSG="$(leer_status handoff_message)"
+    APROBACION="$(leer_status aprobacion)"
+    BE_ISSUES="$(leer_status backend_issues)"
+    FE_ISSUES="$(leer_status frontend_issues)"
+    COMPLETADOS="$(leer_status completados)"
+
+    # Construir en buffer
+    out+="\n"
+    out+="${GRIS}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}\n"
+    out+="  ${NEGRITA}${AZUL}$NOMBRE${RESET} — Dashboard  ${GRIS}$(date '+%H:%M:%S')${RESET}\n"
+    out+="${GRIS}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}\n"
+    out+="\n"
+
+    if [ -n "$ADR" ]; then
+        out+="  ${NEGRITA}$ADR${RESET} — $TITULO\n"
+        [ -n "$BRANCH" ] && out+="  ${GRIS}$BRANCH${RESET}\n"
+
+        if [ -n "$INICIADO" ]; then
+            local ahora inicio diff
+            ahora=$(date +%s)
+            inicio=$(date -j -f "%Y-%m-%d" "$INICIADO" +%s 2>/dev/null || date -d "$INICIADO" +%s 2>/dev/null || echo "")
+            if [ -n "$inicio" ] && [ "$inicio" -gt 0 ]; then
+                diff=$(( (ahora - inicio) / 3600 ))
+                out+="  ${GRIS}Iniciado hace ${diff}h${RESET}\n"
+            fi
+        fi
+
+        local TOTAL_BE=0 TOTAL_FE=0 DONE=0 TOTAL=0 PORC=0
+        [ -n "$BE_ISSUES"   ] && TOTAL_BE=$(echo "$BE_ISSUES"   | tr ',' '\n' | grep -c '\S' 2>/dev/null || echo 0)
+        [ -n "$FE_ISSUES"   ] && TOTAL_FE=$(echo "$FE_ISSUES"   | tr ',' '\n' | grep -c '\S' 2>/dev/null || echo 0)
+        TOTAL=$((TOTAL_BE + TOTAL_FE))
+        [ -n "$COMPLETADOS" ] && DONE=$(echo "$COMPLETADOS" | tr ',' '\n' | grep -c '\S' 2>/dev/null || echo 0)
+        [ "$TOTAL" -gt 0 ]    && PORC=$((DONE * 100 / TOTAL))
+
+        if [ "$TOTAL" -gt 0 ]; then
+            local BLOQUES=$((PORC / 5)) BARRA=""
+            for ((i=0; i<20; i++)); do
+                [ $i -lt $BLOQUES ] && BARRA="${BARRA}█" || BARRA="${BARRA}░"
+            done
+            out+="\n"
+            out+="  ${VERDE}$BARRA${RESET} ${NEGRITA}$DONE/$TOTAL${RESET} issues ${GRIS}($PORC%)${RESET}\n"
+        fi
+    else
+        out+="  ${GRIS}Sin ADR activo — usa 'Nueva feature' para empezar${RESET}\n"
+    fi
+
+    out+="\n"
+    out+="${GRIS}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}\n"
+    out+="\n"
+    out+="  ${NEGRITA}Agentes${RESET}\n"
+    out+="\n"
+    out+="$(printf "  🧠 %-14s " "Orquestador")$(icono_estado "$ORCH")\n"
+    out+="$(printf "  ⚙️  %-14s " "Backend")$(icono_estado "$BE")\n"
+    out+="$(printf "  🎨 %-14s " "Frontend")$(icono_estado "$FE")\n"
+    out+="$(printf "  📋 %-14s " "Contexto")$(icono_estado "$CTX")\n"
+    out+="$(printf "  📚 %-14s " "Documentador")$(icono_estado "$FDOCS")\n"
+    out+="\n"
+
+    if [ -d "$RUTA_PROYECTO/.git" ]; then
+        local ARCHIVOS COMMITS
+        ARCHIVOS=$(git -C "$RUTA_PROYECTO" diff --name-only HEAD 2>/dev/null | wc -l | tr -d ' ')
+        COMMITS=$(git -C "$RUTA_PROYECTO" rev-list --count main..HEAD 2>/dev/null || echo "—")
+        out+="${GRIS}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}\n"
+        out+="\n"
+        out+="  ${NEGRITA}Git${RESET}\n"
+        out+="\n"
+        out+="$(printf "  %-26s ${NEGRITA}%s${RESET}\n" "Archivos modificados:" "$ARCHIVOS")"
+        out+="$(printf "  %-26s ${NEGRITA}%s${RESET}\n" "Commits adelante:" "$COMMITS")"
+        out+="\n"
+    fi
+
+    if [ -n "$BLOCKER_AG" ]; then
+        out+="${GRIS}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}\n"
+        out+="\n"
+        out+="  ${ROJO}${NEGRITA}🚨 BLOCKER — $BLOCKER_AG${RESET}\n"
+        out+="  ${ROJO}$BLOCKER_DET${RESET}\n"
+        out+="\n"
+    fi
+
+    if [ -n "$HANDOFF_MSG" ]; then
+        out+="${GRIS}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}\n"
+        out+="\n"
+        out+="  ${NEGRITA}Handoff${RESET}\n"
+        out+="  ${GRIS}$HANDOFF_MSG${RESET}\n"
+        out+="\n"
+    fi
+
+    if [ "$ORCH" = "awaiting_human" ] && [ "$APROBACION" = "pending" ]; then
+        out+="${GRIS}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}\n"
+        out+="\n"
+        out+="  ${MAGENTA}${NEGRITA}👀 LISTO PARA TU REVISIÓN${RESET}\n"
+        out+="  ${MAGENTA}Prueba el feature en el navegador${RESET}\n"
+        out+="\n"
+    fi
+
+    if [ "$APROBACION" = "approved" ]; then
+        out+="${GRIS}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}\n"
+        out+="\n"
+        out+="  ${VERDE}${NEGRITA}✅ APROBADO — listo para commit y PR${RESET}\n"
+        out+="\n"
+    fi
+
+    local poll_estado
+    $auto && poll_estado="${VERDE}ON${RESET}" || poll_estado="${GRIS}OFF${RESET}"
+    out+="${GRIS}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}\n"
+    out+="\n"
+    out+="  Modo: ${GRIS}multi-terminal${RESET}  ${VERDE}(Claude Code)${RESET}\n"
+    out+="  Auto-poll: $poll_estado  ${GRIS}(cada ${INTERVALO}s)${RESET}\n"
+    out+="\n"
+    out+="  ${GRIS}[a] toggle auto-poll  [r] refresh  [q] salir${RESET}\n"
+    out+="\n"
+
+    # Imprimir todo de una sola vez al final
+    printf "%b" "$out"
+}
+
+# ─── Dashboard live ───────────────────────────────────────────────────────────
+INTERVALO=10
+
+cmd_dashboard() {
+    local NOMBRE="$(nombre_proyecto)"
+
+    # Si ya estamos en modo dashboard interno (llamado desde la terminal dedicada)
+    if [ "$_DASHBOARD_INTERNO" = "1" ]; then
+        _dashboard_loop
+        return
+    fi
+
+    # Abrir terminal dedicada para el dashboard
+    info "Abriendo dashboard en terminal dedicada..."
+    echo ""
+
+    local CMD="export _DASHBOARD_INTERNO=1; $0 dashboard"
+
+    if tiene_iterm; then
+        osascript <<EOF
+tell application "iTerm2"
+    activate
+    set w to (create window with default profile)
+    tell w
+        tell current session
+            set name to "$NOMBRE | 📊 Dashboard"
+            write text "cd '$RUTA_PROYECTO' && $CMD"
+        end tell
+    end tell
+end tell
+EOF
+    else
+        osascript <<EOF
+tell application "Terminal"
+    activate
+    set t to do script "cd '$RUTA_PROYECTO' && $CMD"
+    set custom title of t to "$NOMBRE | 📊 Dashboard"
+end tell
+EOF
+    fi
+
+    ok "Dashboard abierto en terminal dedicada."
+    echo ""
+}
+
+# Loop interno del dashboard — solo se ejecuta en la terminal dedicada
+_dashboard_loop() {
+    local AUTO_POLL=true
+    local ULTIMO_BE="" ULTIMO_FE="" ULTIMO_ORCH=""
+
+    _salir() {
+        printf '\033c'
+        echo ""
+        echo -e "  ${GRIS}Dashboard cerrado.${RESET}"
+        echo ""
+        exit 0
+    }
+    trap '_salir' INT TERM
+
+    printf '\033c'
+
+    while true; do
+        local CONTENIDO
+        CONTENIDO="$(_construir_dashboard "$AUTO_POLL")"
+
+        printf '\033c'
+        echo -e "$CONTENIDO"
+
+        local tecla=""
+        IFS= read -r -s -n1 -t "$INTERVALO" tecla 2>/dev/null || true
+
+        case "$tecla" in
+            a|A) $AUTO_POLL && AUTO_POLL=false || AUTO_POLL=true ;;
+            r|R) : ;;
+            q|Q) _salir ;;
+        esac
+
+        if $AUTO_POLL; then
+            local BE FE ORCH NOMBRE ADR
+            BE="$(leer_status backend)"
+            FE="$(leer_status frontend)"
+            ORCH="$(leer_status orchestrator)"
+            NOMBRE="$(nombre_proyecto)"
+            ADR="$(leer_status adr)"
+
+            [ "$BE"   = "done"           ] && [ "$ULTIMO_BE"   != "done"           ] && notificar "$NOMBRE" "⚙️ Backend completó" "Glass"
+            [ "$FE"   = "done"           ] && [ "$ULTIMO_FE"   != "done"           ] && notificar "$NOMBRE" "🎨 Frontend completó" "Glass"
+            [ "$ORCH" = "awaiting_human" ] && [ "$ULTIMO_ORCH" != "awaiting_human" ] && notificar "$NOMBRE" "👀 $ADR listo para revisión" "Ping"
+            [ "$BE"   = "needs_fix"      ] && [ "$ULTIMO_BE"   != "needs_fix"      ] && notificar "$NOMBRE" "🔴 Backend necesita correcciones" "Basso"
+            [ "$FE"   = "needs_fix"      ] && [ "$ULTIMO_FE"   != "needs_fix"      ] && notificar "$NOMBRE" "🔴 Frontend necesita correcciones" "Basso"
+
+            ULTIMO_BE="$BE"
+            ULTIMO_FE="$FE"
+            ULTIMO_ORCH="$ORCH"
+        fi
+    done
+}
+
+# ─── Launcher ────────────────────────────────────────────────────────────────
+cmd_start() {
+    local NOMBRE="$(nombre_proyecto)"
+    local ADR="$(leer_status adr)"
+    local TITULO="$(leer_status titulo)"
+
+    printf '\033[2J\033[H'
+    echo ""
+    separador
+    echo -e "  ${NEGRITA}${AZUL}AG Suite Agent Framework${RESET}  ${GRIS}v$VERSION${RESET}"
+    echo -e "  ${NEGRITA}$NOMBRE${RESET}"
+    separador
+    echo ""
+
+    if [ -n "$ADR" ]; then
+        echo -e "  ${NEGRITA}ADR en curso:${RESET} ${AZUL}$ADR${RESET} — $TITULO"
+        echo ""
+        printf "  🧠 %-14s " "Orquestador";  icono_estado "$(leer_status orchestrator)"; echo ""
+        printf "  ⚙️  %-14s " "Backend";      icono_estado "$(leer_status backend)";      echo ""
+        printf "  🎨 %-14s " "Frontend";     icono_estado "$(leer_status frontend)";     echo ""
+        printf "  📋 %-14s " "Contexto";     icono_estado "$(leer_status contexto)";     echo ""
+        printf "  📚 %-14s " "Documentador"; icono_estado "$(leer_status featuredocs)";  echo ""
+        echo ""
+        linea_fina
+        echo ""
+    fi
+
+    echo -e "  ${NEGRITA}¿Qué quieres hacer?${RESET}"
+    echo ""
+    echo -e "  ${VERDE}[1]${RESET} Pipeline completo     → abre todas las terminales"
+    echo -e "  ${VERDE}[2]${RESET} Abrir agente          → elige cuál"
+    echo -e "  ${VERDE}[3]${RESET} Dashboard live        → monitoreo en tiempo real"
+    echo -e "  ${VERDE}[4]${RESET} Nueva feature         → Orquestador para brainstorming"
+    [ -n "$ADR" ] && echo -e "  ${VERDE}[5]${RESET} Continuar ADR         → abre solo lo que falta"
+    echo -e "  ${VERDE}[6]${RESET} Estado del pipeline   → resumen rápido"
+    echo -e "  ${GRIS}[q]${RESET} Salir"
+    echo ""
+    separador
+    echo ""
+    read -p "  Opción: " OPCION
+    echo ""
+
+    case "$OPCION" in
+        1) _launcher_pipeline_completo ;;
+        2) _launcher_agente_individual ;;
+        3) cmd_dashboard ;;
+        4) _launcher_nueva_feature ;;
+        5) [ -n "$ADR" ] && _launcher_continuar_adr || _launcher_nueva_feature ;;
+        6) cmd_status ;;
+        q|Q) echo -e "  ${GRIS}Hasta luego.${RESET}"; echo ""; exit 0 ;;
+        *) warn "Opción no válida."; sleep 1; cmd_start ;;
+    esac
+}
+
+_verificar_proyecto() {
+    if [ ! -f "$RUTA_AGENTS/agent-config.md" ]; then
+        echo ""
+        error "No se detectó un proyecto con AG Suite Agent Framework."
+        info "Navega a la raíz de tu proyecto e inicializa con: agente init"
+        echo ""
+        exit 1
+    fi
+}
+
+_launcher_pipeline_completo() {
+    _verificar_proyecto
+    echo -e "  ${NEGRITA}Pipeline completo — $(nombre_proyecto)${RESET}"
+    echo ""
+    if tiene_iterm; then
+        info "Abriendo iTerm2 con paneles..."
+        osascript "$RUTA_SCRIPTS/lanzar-agentes-iterm.applescript"
+    else
+        info "Abriendo Terminal.app..."
+        bash "$RUTA_SCRIPTS/lanzar-agentes-terminal.sh"
+    fi
+    ok "Terminales abiertas"
+    echo ""
+    read -p "  ¿Abrir dashboard ahora? (S/n): " VER_DASH
+    [[ "$VER_DASH" != "n" && "$VER_DASH" != "N" ]] && cmd_dashboard
+}
+
+_launcher_start_iterm() {
+    _verificar_proyecto
+    echo ""
+    echo -e "  ${NEGRITA}$(nombre_proyecto) — iTerm2${RESET}"
+    echo ""
+
+    if ! tiene_iterm; then
+        warn "iTerm2 no está instalado."
+        read -p "  ¿Iniciamos en Terminal.app? (S/n): " FALLBACK
+        if [[ "$FALLBACK" != "n" && "$FALLBACK" != "N" ]]; then
+            _launcher_start_terminal
+        else
+            echo -e "  ${GRIS}Cancelado.${RESET}"
+            echo ""
+        fi
+        return
+    fi
+
+    info "Abriendo todos los agentes en iTerm2 con paneles..."
+    osascript "$RUTA_SCRIPTS/lanzar-agentes-iterm.applescript"
+    ok "5 agentes abiertos en iTerm2"
+    echo ""
+    read -p "  ¿Abrir dashboard ahora? (S/n): " VER_DASH
+    [[ "$VER_DASH" != "n" && "$VER_DASH" != "N" ]] && cmd_dashboard
+}
+
+_launcher_start_terminal() {
+    _verificar_proyecto
+    echo ""
+    echo -e "  ${NEGRITA}$(nombre_proyecto) — Terminal.app${RESET}"
+    echo ""
+    info "Abriendo todos los agentes en Terminal.app..."
+    bash "$RUTA_SCRIPTS/lanzar-agentes-terminal.sh"
+    ok "5 agentes abiertos en Terminal.app"
+    echo ""
+    read -p "  ¿Abrir dashboard ahora? (S/n): " VER_DASH
+    [[ "$VER_DASH" != "n" && "$VER_DASH" != "N" ]] && cmd_dashboard
+}
+
+_launcher_agente_individual() {
+    printf '\033[2J\033[H'
+    echo ""
+    separador
+    echo -e "  ${NEGRITA}Abrir agente individual${RESET}"
+    separador
+    echo ""
+    echo -e "  ${VERDE}[1]${RESET} 🧠 Orquestador"
+    echo -e "  ${VERDE}[2]${RESET} ⚙️  Backend"
+    echo -e "  ${VERDE}[3]${RESET} 🎨 Frontend"
+    echo -e "  ${VERDE}[4]${RESET} 📋 Contexto"
+    echo -e "  ${VERDE}[5]${RESET} 📚 Documentador"
+    echo -e "  ${GRIS}[b]${RESET} ← Volver"
+    echo ""
+    read -p "  Agente: " AG
+    case "$AG" in
+        1) bash "$RUTA_SCRIPTS/iniciar-agente.sh" orquestador ;;
+        2) bash "$RUTA_SCRIPTS/iniciar-agente.sh" backend ;;
+        3) bash "$RUTA_SCRIPTS/iniciar-agente.sh" frontend ;;
+        4) bash "$RUTA_SCRIPTS/iniciar-agente.sh" contexto ;;
+        5) bash "$RUTA_SCRIPTS/iniciar-agente.sh" documentador ;;
+        b|B) cmd_start ;;
+        *) warn "Opción no válida."; sleep 1; _launcher_agente_individual ;;
+    esac
+}
+
+_launcher_nueva_feature() {
+    echo -e "  ${NEGRITA}Nueva feature — Orquestador${RESET}"
+    echo ""
+    info "Abriendo Orquestador para planear..."
+    echo ""
+    bash "$RUTA_SCRIPTS/iniciar-agente.sh" orquestador
+}
+
+_launcher_continuar_adr() {
+    local BE="$(leer_status backend)"
+    local FE="$(leer_status frontend)"
+    local CTX="$(leer_status contexto)"
+    local FDOCS="$(leer_status featuredocs)"
+    local ORCH="$(leer_status orchestrator)"
+    local abiertos=0
+
+    echo -e "  ${NEGRITA}Continuar $(leer_status adr)${RESET}"
+    echo ""
+
+    for agente in orquestador backend frontend contexto documentador; do
+        local estado
+        case "$agente" in
+            orquestador)  estado="$ORCH" ;;
+            backend)      estado="$BE" ;;
+            frontend)     estado="$FE" ;;
+            contexto)     estado="$CTX" ;;
+            documentador) estado="$FDOCS" ;;
+        esac
+        if [[ "$estado" != "done"* ]]; then
+            bash "$RUTA_SCRIPTS/iniciar-agente.sh" "$agente" &
+            sleep 0.5
+            ok "$agente ($estado)"
+            abiertos=$((abiertos + 1))
+        else
+            skip "$agente — done"
+        fi
+    done
+
+    echo ""
+    [ "$abiertos" -eq 0 ] && ok "Todos done." || info "$abiertos agente(s) abiertos."
+    echo ""
+    read -p "  ¿Abrir dashboard? (S/n): " VER_DASH
+    [[ "$VER_DASH" != "n" && "$VER_DASH" != "N" ]] && cmd_dashboard
+}
+
+# ─── Status rápido ────────────────────────────────────────────────────────────
+cmd_status() {
+    echo ""
+    separador
+    echo -e "  ${NEGRITA}$(nombre_proyecto) — Estado${RESET}"
+    separador
+    echo ""
+
+    local ADR="$(leer_status adr)"
+    if [ -n "$ADR" ]; then
+        echo -e "  ${AZUL}${NEGRITA}$ADR${RESET} — $(leer_status titulo)"
+        echo ""
+    else
+        echo -e "  ${GRIS}Sin ADR activo${RESET}"; echo ""
+    fi
+
+    printf "  🧠 %-14s " "Orquestador";  icono_estado "$(leer_status orchestrator)"; echo ""
+    printf "  ⚙️  %-14s " "Backend";      icono_estado "$(leer_status backend)";      echo ""
+    printf "  🎨 %-14s " "Frontend";     icono_estado "$(leer_status frontend)";     echo ""
+    printf "  📋 %-14s " "Contexto";     icono_estado "$(leer_status contexto)";     echo ""
+    printf "  📚 %-14s " "Documentador"; icono_estado "$(leer_status featuredocs)";  echo ""
+
+    local BLOCKER_AG="$(leer_status blocker_agente)"
+    local APROBACION="$(leer_status aprobacion)"
+    [ -n "$BLOCKER_AG" ]           && echo -e "\n  ${ROJO}🚨 Blocker: $BLOCKER_AG${RESET}"
+    [ "$APROBACION" = "approved" ] && echo -e "\n  ${VERDE}✅ Aprobado para commit${RESET}"
+
+    echo ""
+    separador
+    echo ""
+}
+
+# ─── Init ─────────────────────────────────────────────────────────────────────
+cmd_init() {
+    local MODO_CONFIG="crear"
+
+    echo ""
+    separador
+    echo -e "  ${NEGRITA}AG Suite Agent Framework — Init${RESET}"
+    separador
+    echo ""
+    info "Proyecto:  $RUTA_PROYECTO"
+    info "Framework: $RUTA_FRAMEWORK"
+    echo ""
+
+    if [ ! -d "$RUTA_FRAMEWORK/template" ]; then
+        error "Template no encontrado en: $RUTA_FRAMEWORK/template"
+        exit 1
+    fi
+
+    if [ ! -d "$RUTA_PROYECTO/.git" ]; then
+        warn "No se detectó repositorio git."
+        read -p "  ¿Continuar? (s/N): " C
+        [[ "$C" != "s" && "$C" != "S" ]] && { echo "  Cancelado."; exit 0; }
+        echo ""
+    fi
+
+    if [ -f "$RUTA_AGENTS/agent-config.md" ]; then
+        echo -e "  ${AMARILLO}agent-config.md ya existe.${RESET}"
+        echo ""
+        echo "  [1] Solo llenar campos vacíos (recomendado)"
+        echo "  [2] Sobreescribir completo"
+        echo "  [3] Cancelar"
+        echo ""
+        read -p "  Opción: " OPC
+        case "$OPC" in
+            1) MODO_CONFIG="actualizar" ;;
+            2) MODO_CONFIG="sobreescribir" ;;
+            *) echo "  Cancelado."; exit 0 ;;
+        esac
+        echo ""
+    fi
+
+    echo -e "  ${NEGRITA}Estructura:${RESET}"
+    echo ""
+    _cc() { [ -d "$RUTA_PROYECTO/$1" ] && skip "$1/" || { mkdir -p "$RUTA_PROYECTO/$1"; ok "$1/"; }; }
+    _ca() { [ -f "$RUTA_PROYECTO/$1" ] && skip "$1"  || { printf '%s\n' "$2" > "$RUTA_PROYECTO/$1"; ok "$1"; }; }
+
+    _cc "docs/.agents/prompts"
+    _cc "docs/adr"
+    _cc "docs/issues"
+    _cc "docs/contracts/models"
+    _cc "docs/features"
+    _cc "scripts"
+
+    echo ""
+    echo -e "  ${NEGRITA}Archivos base:${RESET}"
+    echo ""
+    _ca "docs/adr/README.md"      "# ADRs
+
+| ADR | Título | Estado |
+|-----|--------|--------|
+"
+    _ca "docs/contracts/README.md" "# Contracts
+"
+    _ca "docs/PROJECT_CONTEXT.md"  "# Contexto del Proyecto
+"
+
+    echo ""
+    echo -e "  ${NEGRITA}Framework:${RESET}"
+    echo ""
+
+    _cp() {
+        [ ! -f "$1" ] && { warn "No encontrado: $(basename "$1")"; return; }
+        [ -f "$2" ] && skip "$(basename "$2")" || { cp "$1" "$2"; ok "$(basename "$2")"; }
+    }
+
+    local SRC="$RUTA_FRAMEWORK/template"
+    _cp "$SRC/docs/.agents/prompts/orchestrator.md" "$RUTA_AGENTS/prompts/orchestrator.md"
+    _cp "$SRC/docs/.agents/prompts/backend.md"      "$RUTA_AGENTS/prompts/backend.md"
+    _cp "$SRC/docs/.agents/prompts/frontend.md"     "$RUTA_AGENTS/prompts/frontend.md"
+    _cp "$SRC/docs/.agents/prompts/context.md"      "$RUTA_AGENTS/prompts/context.md"
+    _cp "$SRC/docs/.agents/prompts/featuredocs.md"  "$RUTA_AGENTS/prompts/featuredocs.md"
+    _cp "$SRC/docs/.agents/agentes.md"              "$RUTA_AGENTS/agentes.md"
+    _cp "$SRC/docs/.agents/arranque-terminal.md"    "$RUTA_AGENTS/arranque-terminal.md"
+    _cp "$SRC/docs/.agents/arranque-sesion.md"      "$RUTA_AGENTS/arranque-sesion.md"
+    _cp "$SRC/docs/.agents/agente-inicializador.md" "$RUTA_AGENTS/agente-inicializador.md"
+    _cp "$SRC/docs/.agents/status.md"               "$RUTA_AGENTS/status.md"
+
+    if [ "$MODO_CONFIG" = "crear" ] || [ "$MODO_CONFIG" = "sobreescribir" ]; then
+        cp "$SRC/docs/.agents/agent-config.TEMPLATE.md" "$RUTA_AGENTS/agent-config.md"
+        ok "agent-config.md"
+    fi
+
+    _cp "$SRC/scripts/iniciar-agente.sh"                "$RUTA_PROYECTO/scripts/iniciar-agente.sh"
+    _cp "$SRC/scripts/lanzar-agentes-iterm.applescript" "$RUTA_PROYECTO/scripts/lanzar-agentes-iterm.applescript"
+    _cp "$SRC/scripts/lanzar-agentes-terminal.sh"       "$RUTA_PROYECTO/scripts/lanzar-agentes-terminal.sh"
+    _cp "$SRC/Makefile"                                 "$RUTA_PROYECTO/Makefile"
+    chmod +x "$RUTA_PROYECTO/scripts/iniciar-agente.sh" "$RUTA_PROYECTO/scripts/lanzar-agentes-terminal.sh" 2>/dev/null
+
+    echo ""
+    echo -e "  ${NEGRITA}Generando agent-config.md:${RESET}"
+    echo ""
+
+    local MODO_FLAG=""
+    [ "$MODO_CONFIG" = "actualizar" ]    && MODO_FLAG="MODO: Solo llena campos vacíos. No sobreescribas lo que ya tiene valor."
+    [ "$MODO_CONFIG" = "sobreescribir" ] && MODO_FLAG="MODO: Sobreescribe el archivo completo con la información detectada."
+
+    if tiene_claude; then
+        ok "Claude Code detectado — analizando con Haiku..."
+        echo ""
+
+        local PROMPT_INIT TMP_OUT
+        PROMPT_INIT="$(cat "$RUTA_AGENTS/agente-inicializador.md")
+
+$MODO_FLAG
+
+PROYECTO: $RUTA_PROYECTO
+
+CONFIG_ACTUAL:
+$(cat "$RUTA_AGENTS/agent-config.md" 2>/dev/null || echo '(vacío)')
+
+IMPORTANTE:
+- Analiza el proyecto en PROYECTO
+- Devuelve ÚNICAMENTE el contenido completo del agent-config.md actualizado
+- Sin explicaciones, sin bloques de código markdown, sin texto extra
+- Empieza directamente con: # agent-config.md"
+
+        # Guardar resultado en archivo temporal para evitar subshell
+        TMP_OUT="$(mktemp)"
+        claude \
+            --model claude-haiku-4-5-20251001 \
+            --print \
+            --no-session-persistence \
+            "$PROMPT_INIT" > "$TMP_OUT" 2>/dev/null &
+
+        local PID=$!
+        spinner $PID "Analizando proyecto..."
+        wait $PID
+        local EXIT_CODE=$?
+
+        if [ $EXIT_CODE -eq 0 ] && [ -s "$TMP_OUT" ]; then
+            # Limpiar bloques de código markdown si los incluyó
+            sed 's/^```.*$//' "$TMP_OUT" | sed '/^```$/d' > "$RUTA_AGENTS/agent-config.md"
+            rm -f "$TMP_OUT"
+            ok "agent-config.md generado"
+        else
+            rm -f "$TMP_OUT"
+            warn "No se pudo generar automáticamente."
+            info "Completa docs/.agents/agent-config.md manualmente."
+        fi
+    else
+        warn "Claude Code no detectado."
+        echo ""
+        separador
+        echo -e "  ${NEGRITA}Pega esto en tu herramienta (Copilot, Cursor, etc.):${RESET}"
+        separador
+        echo ""
+        echo "Lee docs/.agents/agente-inicializador.md y ejecuta las instrucciones."
+        echo "Proyecto en: $RUTA_PROYECTO"
+        [ -n "$MODO_FLAG" ] && echo "$MODO_FLAG"
+        echo ""
+        separador
+    fi
+
+    echo ""
+    separador
+    echo -e "  ${VERDE}${NEGRITA}✅ Framework inicializado${RESET}"
+    separador
+    echo ""
+    info "Revisa docs/.agents/agent-config.md"
+    info "Ejecuta: agente start"
+    echo ""
+}
+
+# ─── Help ─────────────────────────────────────────────────────────────────────
+cmd_help() {
+    echo ""
+    separador
+    echo -e "  ${NEGRITA}${AZUL}AG Suite Agent Framework${RESET}  ${GRIS}v$VERSION${RESET}"
+    separador
+    echo ""
+    echo -e "  ${NEGRITA}Uso:${RESET} agente [comando]"
+    echo ""
+    echo -e "  ${NEGRITA}Principal${RESET}"
+    echo -e "  ${VERDE}start${RESET}               Launcher interactivo — punto de entrada"
+    echo -e "  ${VERDE}start iterm${RESET}          Abre todos los agentes en iTerm2 (paneles)"
+    echo -e "  ${VERDE}start terminal${RESET}       Abre todos los agentes en Terminal.app (ventanas)"
+    echo -e "  ${VERDE}start sesion${RESET}         Modo sesión única — un agente cambia de rol"
+    echo ""
+    echo -e "  ${NEGRITA}Pipeline${RESET}"
+    echo -e "  ${VERDE}init${RESET}                Inicializa el framework en este proyecto"
+    echo -e "  ${VERDE}dashboard${RESET}           Dashboard live con auto-poll y notificaciones"
+    echo -e "  ${VERDE}status${RESET}              Estado rápido del pipeline"
+    echo -e "  ${VERDE}reset${RESET}               Limpia status.md después de merge"
+    echo ""
+    echo -e "  ${NEGRITA}Agentes${RESET}"
+    echo -e "  ${VERDE}run${RESET} [rol]           Inicia un agente en esta terminal"
+    echo ""
+    echo -e "  ${NEGRITA}Roles:${RESET} orquestador · backend · frontend · contexto · documentador"
+    echo ""
+    echo -e "  ${NEGRITA}Ejemplos${RESET}"
+    echo -e "  ${GRIS}agente${RESET}                Abre el launcher interactivo"
+    echo -e "  ${GRIS}agente start iterm${RESET}    Abre 5 paneles en iTerm2"
+    echo -e "  ${GRIS}agente start terminal${RESET} Abre 5 ventanas en Terminal.app"
+    echo -e "  ${GRIS}agente start sesion${RESET}   Inicia modo sesión única (Copilot/Claude)"
+    echo -e "  ${GRIS}agente dashboard${RESET}      Dashboard en terminal dedicada"
+    echo -e "  ${GRIS}agente run backend${RESET}    Inicia solo el agente Backend"
+    echo -e "  ${GRIS}agente reset${RESET}          Limpia pipeline después de merge"
+    echo ""
+    separador
+    echo ""
+}
+
+# ─── Reset ────────────────────────────────────────────────────────────────────
+cmd_reset() {
+    local ADR="$(leer_status adr)"
+    local NOMBRE="$(nombre_proyecto)"
+
+    echo ""
+    separador
+    echo -e "  ${NEGRITA}$NOMBRE — Reset del pipeline${RESET}"
+    separador
+    echo ""
+
+    if [ -n "$ADR" ]; then
+        echo -e "  ADR actual: ${AZUL}$ADR${RESET} — $(leer_status titulo)"
+        echo ""
+        warn "Esto limpiará status.md completamente."
+        echo -e "  ${GRIS}Úsalo solo después de merge o para empezar limpio.${RESET}"
+        echo ""
+        read -p "  ¿Continuar? (s/N): " C
+        [[ "$C" != "s" && "$C" != "S" ]] && { echo "  Cancelado."; echo ""; exit 0; }
+    fi
+
+    cat > "$RUTA_AGENTS/status.md" << 'RESET_STATUS'
+# Pipeline Status
+# Canal de comunicación entre agentes.
+
+# ─── ADR Activo ──────────────────────────────────────────────────────────────
+adr=
+titulo=
+branch=
+api_contract=
+iniciado=
+
+# ─── Estado por agente ───────────────────────────────────────────────────────
+orchestrator=idle
+backend=idle
+frontend=idle
+contexto=idle
+featuredocs=idle
+
+# ─── Issues ──────────────────────────────────────────────────────────────────
+backend_issues=
+frontend_issues=
+completados=
+
+# ─── Handoff ─────────────────────────────────────────────────────────────────
+handoff_phase=
+handoff_message=
+handoff_from=
+handoff_to=
+
+# ─── Blocker ─────────────────────────────────────────────────────────────────
+blocker_agente=
+blocker_detalle=
+
+# ─── Aprobación humana ───────────────────────────────────────────────────────
+aprobacion=pending
+aprobado_por=
+nota=
+RESET_STATUS
+
+    echo ""
+    ok "Pipeline limpio. Listo para el siguiente ADR."
+    echo ""
+    separador
+    echo ""
+}
+
+# ─── Sesión única ─────────────────────────────────────────────────────────────
+cmd_sesion() {
+    local NOMBRE="$(nombre_proyecto)"
+
+    echo ""
+    separador
+    echo -e "  ${NEGRITA}$NOMBRE — Modo Sesión Única${RESET}"
+    separador
+    echo ""
+    info "Un solo agente cambia de rol autónomamente."
+    info "Funciona con Claude Code, Copilot, Cursor o cualquier LLM."
+    echo ""
+
+    if tiene_claude; then
+        ok "Claude Code detectado — abriendo sesión multiagente..."
+        echo ""
+
+        local PROMPT_SESION
+        PROMPT_SESION="$(cat "$RUTA_AGENTS/arranque-sesion.md" 2>/dev/null || echo "")"
+        local PROMPT_ORCH
+        PROMPT_ORCH="$(cat "$RUTA_AGENTS/prompts/orchestrator.md" 2>/dev/null || echo "")"
+
+        claude \
+            --append-system-prompt "Eres un sistema multiagente autónomo para $NOMBRE.
+
+$PROMPT_ORCH
+
+MODO SESIÓN ÚNICA:
+- Ejecuta el pipeline completo cambiando de rol según status.md
+- Anuncia cada cambio de rol explícitamente
+- Actualiza status.md al terminar cada fase
+- Respeta los gates de aprobación humana" \
+            --name "$NOMBRE | Multiagente"
+    else
+        warn "Claude Code no detectado."
+        echo ""
+        separador
+        echo -e "  ${NEGRITA}Pega esto en tu herramienta (Copilot, Cursor, etc.):${RESET}"
+        separador
+        echo ""
+        if [ -f "$RUTA_AGENTS/arranque-sesion.md" ]; then
+            cat "$RUTA_AGENTS/arranque-sesion.md"
+        else
+            echo "Eres un sistema multiagente autónomo para $NOMBRE."
+            echo "Lee docs/.agents/agent-config.md, docs/.agents/agentes.md y docs/.agents/status.md."
+            echo "Ejecuta el pipeline cambiando de rol según el estado."
+        fi
+        echo ""
+        separador
+    fi
+
+    echo ""
+}
+
+# ─── Router ───────────────────────────────────────────────────────────────────
+case "${1:-start}" in
+    start)
+        case "${2:-}" in
+            iterm)    _launcher_start_iterm ;;
+            terminal) _launcher_start_terminal ;;
+            sesion)   cmd_sesion ;;
+            *)        cmd_start ;;
+        esac
+        ;;
+    iterm)          _launcher_start_iterm ;;
+    terminal)       _launcher_start_terminal ;;
+    sesion)         cmd_sesion ;;
+    init)           cmd_init ;;
+    dashboard)      cmd_dashboard ;;
+    status)         cmd_status ;;
+    reset)          cmd_reset ;;
+    run)            bash "$RUTA_SCRIPTS/iniciar-agente.sh" "$2" ;;
+    help|--help|-h) cmd_help ;;
+    version|-v)     echo "AG Suite Agent Framework v$VERSION" ;;
+    *)  error "Comando desconocido: $1"; echo ""; cmd_help; exit 1 ;;
+esac
