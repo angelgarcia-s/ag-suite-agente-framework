@@ -660,29 +660,30 @@ cmd_init() {
         ok "Claude Code detectado — analizando con Haiku..."
         echo ""
 
-        local PROMPT_INIT TMP_OUT
-        PROMPT_INIT="$(cat "$RUTA_AGENTS/agente-inicializador.md")
-
-$MODO_FLAG
-
-PROYECTO: $RUTA_PROYECTO
-
-CONFIG_ACTUAL:
-$(cat "$RUTA_AGENTS/agent-config.md" 2>/dev/null || echo '(vacío)')
-
-IMPORTANTE:
-- Analiza el proyecto en PROYECTO
-- Devuelve ÚNICAMENTE el contenido completo del agent-config.md actualizado
-- Sin explicaciones, sin bloques de código markdown, sin texto extra
-- Empieza directamente con: # agent-config.md"
-
-        # Guardar resultado en archivo temporal para evitar subshell
+        local TMP_OUT
         TMP_OUT="$(mktemp)"
+
+        # Construir prompt que fuerza output puro sin conversación
         claude \
             --model claude-haiku-4-5-20251001 \
             --print \
             --no-session-persistence \
-            "$PROMPT_INIT" > "$TMP_OUT" 2>/dev/null &
+            --system-prompt "Eres un generador de archivos de configuración. NUNCA hagas preguntas. NUNCA pidas permiso. NUNCA escribas explicaciones. Tu respuesta SIEMPRE es ÚNICAMENTE el contenido del archivo solicitado, nada más. Sin bloques de código markdown. Sin backticks. Empieza directamente con la primera línea del archivo." \
+            "Analiza el proyecto en $RUTA_PROYECTO.
+
+Lee estos archivos para detectar el stack:
+- composer.json (si existe)
+- package.json (si existe)
+- la estructura de carpetas
+
+$(cat "$RUTA_AGENTS/agente-inicializador.md")
+
+$MODO_FLAG
+
+El agent-config.md actual es:
+$(cat "$RUTA_AGENTS/agent-config.md" 2>/dev/null || echo '(vacío)')
+
+Genera el agent-config.md completo y actualizado. Empieza con: # agent-config.md" > "$TMP_OUT" 2>/dev/null &
 
         local PID=$!
         spinner $PID "Analizando proyecto..."
@@ -690,14 +691,23 @@ IMPORTANTE:
         local EXIT_CODE=$?
 
         if [ $EXIT_CODE -eq 0 ] && [ -s "$TMP_OUT" ]; then
-            # Limpiar bloques de código markdown si los incluyó
-            sed 's/^```.*$//' "$TMP_OUT" | sed '/^```$/d' > "$RUTA_AGENTS/agent-config.md"
-            rm -f "$TMP_OUT"
-            ok "agent-config.md generado"
+            # Verificar que Claude devolvió un archivo válido, no una conversación
+            if head -5 "$TMP_OUT" | grep -q "^# agent-config"; then
+                # Limpiar bloques de código markdown si los incluyó
+                sed 's/^```.*$//' "$TMP_OUT" | sed '/^```$/d' > "$RUTA_AGENTS/agent-config.md"
+                rm -f "$TMP_OUT"
+                ok "agent-config.md generado"
+            else
+                rm -f "$TMP_OUT"
+                warn "Claude respondió pero no generó un archivo válido."
+                info "Completa docs/.agents/agent-config.md manualmente"
+                info "o usa el agente inicializador: lee docs/.agents/agente-inicializador.md"
+            fi
         else
             rm -f "$TMP_OUT"
             warn "No se pudo generar automáticamente."
-            info "Completa docs/.agents/agent-config.md manualmente."
+            info "Completa docs/.agents/agent-config.md manualmente"
+            info "o usa el agente inicializador: lee docs/.agents/agente-inicializador.md"
         fi
     else
         warn "Claude Code no detectado."
