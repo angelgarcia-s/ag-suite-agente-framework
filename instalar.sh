@@ -8,7 +8,7 @@ set -e
 REPO_URL="https://github.com/angelgarcia-s/ag-suite-agente-framework"
 RAMA="main"
 TMP_DIR="$(mktemp -d)"
-INSTALL_DIR="$HOME/.agente-framework"
+INSTALL_DIR="$HOME/.ag-suite-agente-framework"
 
 VERDE="\033[0;32m"
 AMARILLO="\033[0;33m"
@@ -19,7 +19,8 @@ RESET="\033[0m"
 
 ok()    { echo -e "  ${VERDE}✅${RESET} $1"; }
 warn()  { echo -e "  ${AMARILLO}⚠️ ${RESET} $1"; }
-info()  { echo -e "  ${AZUL}→${RESET}  $1"; }
+error() { echo -e "  ${ROJO}❌${RESET} $1"; }
+info()  { echo -e "  ${AZUL}›${RESET}  $1"; }
 linea() { echo -e "${GRIS}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"; }
 
 echo ""
@@ -41,7 +42,17 @@ else
 fi
 
 unzip -q "$TMP_DIR/framework.zip" -d "$TMP_DIR"
-FRAMEWORK_SRC="$TMP_DIR/agente-framework-$RAMA"
+
+# Detectar nombre de la carpeta extraída dinámicamente
+FRAMEWORK_SRC="$(find "$TMP_DIR" -maxdepth 1 -type d -name "*-$RAMA" | head -1)"
+
+if [ -z "$FRAMEWORK_SRC" ] || [ ! -d "$FRAMEWORK_SRC/template" ]; then
+    echo "  ❌ No se encontró el template del framework en el zip descargado."
+    rm -rf "$TMP_DIR"
+    exit 1
+fi
+
+ok "Framework descargado"
 
 # ─── Instalar framework en HOME ──────────────────────────────────────────────
 info "Instalando en $INSTALL_DIR..."
@@ -49,12 +60,9 @@ mkdir -p "$INSTALL_DIR"
 cp -r "$FRAMEWORK_SRC/template" "$INSTALL_DIR/"
 cp -r "$FRAMEWORK_SRC/bin" "$INSTALL_DIR/"
 
-# Apuntar el CLI a su directorio de instalación
-sed -i.bak "s|RUTA_FRAMEWORK=\"\$(cd.*)\"|RUTA_FRAMEWORK=\"$INSTALL_DIR\"|" \
-    "$INSTALL_DIR/bin/agente" 2>/dev/null || true
-rm -f "$INSTALL_DIR/bin/agente.bak"
-
 chmod +x "$INSTALL_DIR/bin/agente"
+chmod +x "$INSTALL_DIR/template/scripts/iniciar-agente.sh" 2>/dev/null
+chmod +x "$INSTALL_DIR/template/scripts/lanzar-agentes-terminal.sh" 2>/dev/null
 ok "Framework instalado"
 
 # ─── Instalar comando 'agente' en PATH ───────────────────────────────────────

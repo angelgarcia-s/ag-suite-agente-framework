@@ -1,15 +1,14 @@
 #!/bin/bash
 
 # AG Suite Agent Framework — Actualizador
-# Actualiza los archivos genéricos sin tocar agent-config.md ni status.md
-# Uso: curl -fsSL https://raw.githubusercontent.com/tu-usuario/agente-framework/main/actualizar.sh | bash
+# Uso: curl -fsSL https://raw.githubusercontent.com/angelgarcia-s/ag-suite-agente-framework/main/actualizar.sh | bash
 
 set -e
 
-REPO_URL="https://github.com/tu-usuario/agente-framework"
+REPO_URL="https://github.com/angelgarcia-s/ag-suite-agente-framework"
 RAMA="main"
 TMP_DIR="$(mktemp -d)"
-INSTALL_DIR="$HOME/.agente-framework"
+INSTALL_DIR="$HOME/.ag-suite-agente-framework"
 
 VERDE="\033[0;32m"
 AMARILLO="\033[0;33m"
@@ -20,7 +19,7 @@ RESET="\033[0m"
 
 ok()    { echo -e "  ${VERDE}✅${RESET} $1"; }
 warn()  { echo -e "  ${AMARILLO}⚠️ ${RESET} $1"; }
-info()  { echo -e "  ${AZUL}→${RESET}  $1"; }
+info()  { echo -e "  ${AZUL}›${RESET}  $1"; }
 skip()  { echo -e "  ${GRIS}⏭️  $1 — no modificado${RESET}"; }
 linea() { echo -e "${GRIS}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"; }
 
@@ -49,29 +48,40 @@ else
 fi
 
 unzip -q "$TMP_DIR/framework.zip" -d "$TMP_DIR"
-FRAMEWORK_SRC="$TMP_DIR/agente-framework-$RAMA"
+
+# Detectar nombre de la carpeta extraída dinámicamente
+FRAMEWORK_SRC="$(find "$TMP_DIR" -maxdepth 1 -type d -name "*-$RAMA" | head -1)"
+
+if [ -z "$FRAMEWORK_SRC" ] || [ ! -d "$FRAMEWORK_SRC/template" ]; then
+    echo "  ❌ No se encontró el template del framework."
+    rm -rf "$TMP_DIR"
+    exit 1
+fi
+
+ok "Framework descargado"
 
 # ─── Actualizar framework en HOME ────────────────────────────────────────────
 info "Actualizando archivos del framework..."
 
 cp -r "$FRAMEWORK_SRC/template/docs/.agents/prompts" "$INSTALL_DIR/template/docs/.agents/"
-cp "$FRAMEWORK_SRC/template/docs/.agents/agentes.md"             "$INSTALL_DIR/template/docs/.agents/"
-cp "$FRAMEWORK_SRC/template/docs/.agents/arranque-terminal.md"   "$INSTALL_DIR/template/docs/.agents/"
-cp "$FRAMEWORK_SRC/template/docs/.agents/arranque-sesion.md"     "$INSTALL_DIR/template/docs/.agents/"
+cp "$FRAMEWORK_SRC/template/docs/.agents/agentes.md"              "$INSTALL_DIR/template/docs/.agents/"
+cp "$FRAMEWORK_SRC/template/docs/.agents/arranque-terminal.md"    "$INSTALL_DIR/template/docs/.agents/"
+cp "$FRAMEWORK_SRC/template/docs/.agents/arranque-sesion.md"      "$INSTALL_DIR/template/docs/.agents/"
 cp "$FRAMEWORK_SRC/template/docs/.agents/agente-inicializador.md" "$INSTALL_DIR/template/docs/.agents/"
 cp -r "$FRAMEWORK_SRC/template/scripts" "$INSTALL_DIR/template/"
 cp "$FRAMEWORK_SRC/bin/agente" "$INSTALL_DIR/bin/agente"
 chmod +x "$INSTALL_DIR/bin/agente"
+chmod +x "$INSTALL_DIR/template/scripts/iniciar-agente.sh" 2>/dev/null
+chmod +x "$INSTALL_DIR/template/scripts/lanzar-agentes-terminal.sh" 2>/dev/null
 
 ok "Prompts actualizados"
 ok "Scripts actualizados"
 ok "CLI actualizado"
-
 skip "agent-config.md"
 skip "status.md"
 skip "Makefile del proyecto"
 
-# ─── Actualizar en proyecto actual ───────────────────────────────────────────
+# ─── Actualizar en proyecto actual si tiene el framework ─────────────────────
 RUTA_PROYECTO="$(pwd)"
 if [ -d "$RUTA_PROYECTO/docs/.agents" ]; then
     echo ""
@@ -84,10 +94,10 @@ if [ -d "$RUTA_PROYECTO/docs/.agents" ]; then
     cp "$FRAMEWORK_SRC/template/docs/.agents/agente-inicializador.md" "$RUTA_PROYECTO/docs/.agents/"
 
     for script in iniciar-agente.sh lanzar-agentes-iterm.applescript lanzar-agentes-terminal.sh; do
-        cp "$FRAMEWORK_SRC/template/scripts/$script" "$RUTA_PROYECTO/scripts/$script"
+        [ -d "$RUTA_PROYECTO/scripts" ] && cp "$FRAMEWORK_SRC/template/scripts/$script" "$RUTA_PROYECTO/scripts/$script"
     done
-    chmod +x "$RUTA_PROYECTO/scripts/iniciar-agente.sh"
-    chmod +x "$RUTA_PROYECTO/scripts/lanzar-agentes-terminal.sh"
+    chmod +x "$RUTA_PROYECTO/scripts/iniciar-agente.sh" 2>/dev/null
+    chmod +x "$RUTA_PROYECTO/scripts/lanzar-agentes-terminal.sh" 2>/dev/null
 
     ok "Proyecto actualizado"
 fi
