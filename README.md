@@ -11,7 +11,7 @@ Pipeline autónomo de desarrollo: Orquestador → Backend → Frontend → Conte
 Desde la raíz de tu proyecto:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/tu-usuario/agente-framework/main/instalar.sh | bash
+curl -fsSL https://raw.githubusercontent.com/angelgarcia-s/ag-suite-agente-framework/main/instalar.sh | bash
 ```
 
 El instalador crea la estructura, copia los archivos y genera tu `agent-config.md` desde el template.
