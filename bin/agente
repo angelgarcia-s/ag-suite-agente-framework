@@ -20,7 +20,8 @@ RUTA_FRAMEWORK="$(_resolver_ruta_framework)"
 _encontrar_raiz() {
     local dir="$PWD"
     while [ "$dir" != "/" ]; do
-        if [ -f "$dir/.git/config" ] || [ -f "$dir/docs/.agents/agent-config.md" ]; then
+        # .git es directorio en un clon normal y archivo en worktrees/submódulos
+        if [ -e "$dir/.git" ] || [ -f "$dir/docs/.agents/agent-config.md" ]; then
             echo "$dir"; return 0
         fi
         dir="$(dirname "$dir")"
@@ -84,7 +85,10 @@ icono_estado() {
         in_progress)    printf "${CYAN}🔄 en progreso${RESET}" ;;
         "done"*)        printf "${VERDE}✅ done${RESET}" ;;
         needs_fix)      printf "${ROJO}🔴 needs_fix${RESET}" ;;
+        blocked)        printf "${ROJO}⛔ bloqueado${RESET}" ;;
         awaiting_human) printf "${MAGENTA}👀 esperando revisión${RESET}" ;;
+        pr_ready)       printf "${MAGENTA}📦 esperando autorización de PR${RESET}" ;;
+        reviewing)      printf "${CYAN}🔍 revisando${RESET}" ;;
         coordinating)   printf "${AZUL}🧠 coordinando${RESET}" ;;
         *)              printf "${GRIS}${1:- — }${RESET}" ;;
     esac
@@ -171,7 +175,7 @@ _construir_dashboard() {
     out+="$(printf "  📚 %-14s " "Documentador")$(icono_estado "$FDOCS")\n"
     out+="\n"
 
-    if [ -d "$RUTA_PROYECTO/.git" ]; then
+    if [ -e "$RUTA_PROYECTO/.git" ]; then
         local ARCHIVOS COMMITS
         ARCHIVOS=$(git -C "$RUTA_PROYECTO" diff --name-only HEAD 2>/dev/null | wc -l | tr -d ' ')
         COMMITS=$(git -C "$RUTA_PROYECTO" rev-list --count main..HEAD 2>/dev/null || echo "—")
@@ -204,14 +208,20 @@ _construir_dashboard() {
         out+="${GRIS}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}\n"
         out+="\n"
         out+="  ${MAGENTA}${NEGRITA}👀 LISTO PARA TU REVISIÓN${RESET}\n"
-        out+="  ${MAGENTA}Prueba el feature en el navegador${RESET}\n"
+        out+="  ${MAGENTA}Prueba el feature y revisa los commits de la branch${RESET}\n"
         out+="\n"
     fi
 
-    if [ "$APROBACION" = "approved" ]; then
+    if [ "$ORCH" = "pr_ready" ]; then
         out+="${GRIS}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}\n"
         out+="\n"
-        out+="  ${VERDE}${NEGRITA}✅ APROBADO — listo para commit y PR${RESET}\n"
+        out+="  ${MAGENTA}${NEGRITA}📦 ESPERANDO TU AUTORIZACIÓN PARA EL PR${RESET}\n"
+        out+="  ${MAGENTA}Código y documentación commiteados. El merge lo haces tú.${RESET}\n"
+        out+="\n"
+    elif [ "$APROBACION" = "approved" ]; then
+        out+="${GRIS}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}\n"
+        out+="\n"
+        out+="  ${VERDE}${NEGRITA}✅ APROBADO — documentando antes del PR${RESET}\n"
         out+="\n"
     fi
 
@@ -317,6 +327,7 @@ _dashboard_loop() {
             [ "$BE"   = "done"           ] && [ "$ULTIMO_BE"   != "done"           ] && notificar "$NOMBRE" "⚙️ Backend completó" "Glass"
             [ "$FE"   = "done"           ] && [ "$ULTIMO_FE"   != "done"           ] && notificar "$NOMBRE" "🎨 Frontend completó" "Glass"
             [ "$ORCH" = "awaiting_human" ] && [ "$ULTIMO_ORCH" != "awaiting_human" ] && notificar "$NOMBRE" "👀 $ADR listo para revisión" "Ping"
+            [ "$ORCH" = "pr_ready"       ] && [ "$ULTIMO_ORCH" != "pr_ready"       ] && notificar "$NOMBRE" "📦 $ADR espera tu autorización para el PR" "Ping"
             [ "$BE"   = "needs_fix"      ] && [ "$ULTIMO_BE"   != "needs_fix"      ] && notificar "$NOMBRE" "🔴 Backend necesita correcciones" "Basso"
             [ "$FE"   = "needs_fix"      ] && [ "$ULTIMO_FE"   != "needs_fix"      ] && notificar "$NOMBRE" "🔴 Frontend necesita correcciones" "Basso"
 
@@ -793,23 +804,46 @@ cmd_reset() {
         [[ "$C" != "s" && "$C" != "S" ]] && { echo "  Cancelado."; echo ""; exit 0; }
     fi
 
+    # El reset es la única reescritura completa permitida de status.md: solo
+    # ocurre tras el merge, cuando ningún agente está trabajando.
+    # Debe reflejar el mismo esquema que template/docs/.agents/status.md.
     cat > "$RUTA_AGENTS/status.md" << 'RESET_STATUS'
 # Pipeline Status
 # Canal de comunicación entre agentes.
+# Formato: clave=valor — NO usar markdown ni bloques de código al escribir.
+# Protocolo de escritura (ownership, testigo, append-only): docs/.agents/agentes.md
 
 # ─── ADR Activo ──────────────────────────────────────────────────────────────
+# Dueño: Orquestador
 adr=
 titulo=
 branch=
 api_contract=
 iniciado=
 
-# ─── Estado por agente ───────────────────────────────────────────────────────
+# ─── Estado del Orquestador ──────────────────────────────────────────────────
+# idle | coordinating | reviewing | awaiting_human | pr_ready
 orchestrator=idle
+orchestrator_ts=
+
+# ─── Estado por agente ───────────────────────────────────────────────────────
+# idle | ready | in_progress | done | needs_fix | blocked
+# 'ready' y 'needs_fix' los escribe el Orquestador; el resto, el propio agente.
 backend=idle
+backend_ts=
+backend_mensaje=
+
 frontend=idle
+frontend_ts=
+frontend_mensaje=
+
 contexto=idle
+contexto_ts=
+contexto_mensaje=
+
 featuredocs=idle
+featuredocs_ts=
+featuredocs_mensaje=
 
 # ─── Issues ──────────────────────────────────────────────────────────────────
 backend_issues=
@@ -817,12 +851,12 @@ frontend_issues=
 completados=
 
 # ─── Handoff ─────────────────────────────────────────────────────────────────
+# Dueño: Orquestador — ningún agente escribe aquí.
 handoff_phase=
 handoff_message=
-handoff_from=
-handoff_to=
 
 # ─── Blocker ─────────────────────────────────────────────────────────────────
+# Dueño: Orquestador — un agente bloqueado usa su propio _mensaje.
 blocker_agente=
 blocker_detalle=
 
@@ -830,6 +864,9 @@ blocker_detalle=
 aprobacion=pending
 aprobado_por=
 nota=
+
+# ─── Bitácora (APPEND-ONLY) ──────────────────────────────────────────────────
+# Formato: [YYYY-MM-DD HH:MM] agente: qué pasó
 RESET_STATUS
 
     echo ""
@@ -856,8 +893,6 @@ cmd_sesion() {
         ok "Claude Code detectado — abriendo sesión multiagente..."
         echo ""
 
-        local PROMPT_SESION
-        PROMPT_SESION="$(cat "$RUTA_AGENTS/arranque-sesion.md" 2>/dev/null || echo "")"
         local PROMPT_ORCH
         PROMPT_ORCH="$(cat "$RUTA_AGENTS/prompts/orchestrator.md" 2>/dev/null || echo "")"
 

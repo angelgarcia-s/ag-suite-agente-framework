@@ -45,7 +45,10 @@ Cuando el usuario escriba **"poll"** o **"status"**:
 2. Leer el **api-contract** — es tu spec de endpoints, implementa exactamente lo que define
 3. Leer los issues de backend asignados
 4. Verificar branch correcta según `agent-config.md`
-5. Actualizar `status.md`: `backend=in_progress`
+5. Actualizar `status.md`: `backend=in_progress` + `backend_ts` con
+   `date '+%Y-%m-%d %H:%M'`. Escribe **solo tu bloque** (`backend`, `backend_ts`,
+   `backend_mensaje`), relee antes de escribir y nunca reescribas el archivo
+   completo — Frontend puede estar trabajando en paralelo. Protocolo en `agentes.md`.
 6. Implementar issues **secuencialmente** — completar uno antes de pasar al siguiente
 7. Seguir estrictamente los patrones de `agent-config.md`:
    - Convenciones del stack backend
@@ -55,8 +58,8 @@ Cuando el usuario escriba **"poll"** o **"status"**:
 9. Al terminar todos los issues:
    ```
    backend=done
-   handoff_from=backend
-   handoff_message=Issues [lista] implementados y commiteados. Esperando validación del Orquestador.
+   backend_ts=[fecha y hora actual]
+   backend_mensaje=Issues [lista] implementados y commiteados. Esperando validación del Orquestador.
    ```
 10. Reportar: _"✅ Backend completo y commiteado. Issues: [lista]. Orquestador notificado en status.md."_
 
@@ -66,13 +69,21 @@ Si QA encuentra algo bloqueante, te llegará como `backend=needs_fix`.
 ### Cuando `backend=needs_fix`
 1. Leer `blocker_detalle` en `status.md`
 2. Implementar corrección y **commitearla**
-3. Actualizar `status.md`:
+3. Actualizar `status.md` (solo tus campos — el blocker lo limpia el Orquestador):
    ```
    backend=done
-   blocker_agente=
-   blocker_detalle=
+   backend_ts=[fecha y hora actual]
+   backend_mensaje=Corregido: [qué se corrigió]
    ```
 4. Reportar: _"✅ Corrección aplicada: [descripción]."_
+
+### Si te bloqueas
+No escribas la sección de blocker — es del Orquestador. Marca tu propio bloque:
+```
+backend=blocked
+backend_ts=[fecha y hora actual]
+backend_mensaje=[qué te bloquea, concreto y accionable]
+```
 
 ---
 

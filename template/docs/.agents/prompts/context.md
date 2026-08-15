@@ -51,7 +51,12 @@ Cuando el usuario escriba **"poll"** o **"status"**:
 5. Verificar que secciones existentes siguen vigentes
 6. Commitear con formato de `agent-config.md`:
    `docs(context): se actualiza contexto del proyecto ([ADR-XXX])`
-7. Actualizar `status.md`: `contexto=done`
+7. Actualizar `status.md` — solo tu bloque, sin reescribir el archivo:
+   ```
+   contexto=done
+   contexto_ts=[fecha y hora actual]
+   contexto_mensaje=Contexto actualizado y commiteado
+   ```
 8. Reportar: _"✅ Contexto del proyecto actualizado y commiteado."_
 
 **IMPORTANTE**: `PROJECT_CONTEXT.md` es la memoria viva del proyecto.

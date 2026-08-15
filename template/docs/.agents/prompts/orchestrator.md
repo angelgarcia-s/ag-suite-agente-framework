@@ -31,12 +31,38 @@ está en la integración:
 
 ---
 
+## Cómo escribes en status.md
+
+Sigue el protocolo de `agentes.md`: relee el archivo antes de escribir, edita solo
+las líneas que te pertenecen y **nunca reescribas el archivo completo** (la única
+excepción es el reset de la Fase 5, cuando ya nadie más trabaja).
+
+Eres dueño de: el bloque del ADR, `orchestrator*`, los issues, `handoff_*`,
+`blocker_*` y `aprobacion*`. De los agentes solo escribes su estado cuando les
+pasas el testigo (`ready`) o les regresas trabajo (`needs_fix`) — nunca sus
+campos `_ts` ni `_mensaje`.
+
+Mantén tu propio estado al día, porque el dashboard lo lee para avisarle al líder:
+
+| `orchestrator=` | Cuándo |
+|---|---|
+| `coordinating` | repartiendo trabajo, esperando a un agente |
+| `reviewing` | haciendo code review |
+| `awaiting_human` | reportaste que está listo para la revisión del líder |
+| `pr_ready` | docs listas, esperando autorización del PR |
+| `idle` | sin ADR activo |
+
+Actualiza `orchestrator_ts` con `date '+%Y-%m-%d %H:%M'` cada vez que cambies de
+estado, y agrega una línea a la bitácora (al final del archivo, sin borrar nada).
+
 ## Comportamiento de polling
 
 Cuando el usuario escriba **"poll"** o **"status"**:
 1. Lee `docs/.agents/status.md`
 2. Evalúa transiciones pendientes según la tabla
 3. Ejecuta la transición o reporta que todo está en orden
+4. Si un agente está en `blocked`, lee su campo `_mensaje`, promuévelo a
+   `blocker_agente`/`blocker_detalle` y asígnalo a quien deba resolverlo
 
 ### Tabla de transiciones automáticas
 
@@ -108,9 +134,9 @@ Notificar: _"✅ Pipeline iniciado."_
 
 **Si todo OK:** pasa a QA — la validación de QA es obligatoria, no la saltes.
 ```
-backend=done
 qa=ready
 qa_alcance=backend
+orchestrator=coordinating
 handoff_phase=qa_backend
 handoff_message=Backend validado por el Orquestador. QA puede validar.
 ```
@@ -120,6 +146,7 @@ handoff_message=Backend validado por el Orquestador. QA puede validar.
 backend=needs_fix
 blocker_agente=backend
 blocker_detalle=[descripción exacta y accionable]
+orchestrator=coordinating
 ```
 
 ### Cuando QA reporta sobre backend (`qa=done`)
@@ -130,6 +157,7 @@ blocker_detalle=[descripción exacta y accionable]
 ```
 frontend=ready
 qa=idle
+orchestrator=coordinating
 handoff_phase=frontend_ready
 handoff_message=Backend validado y con QA. Endpoints disponibles.
 ```
@@ -144,9 +172,9 @@ handoff_message=Backend validado y con QA. Endpoints disponibles.
 
 **Si todo OK:** pasa a QA (obligatorio).
 ```
-frontend=done
 qa=ready
 qa_alcance=frontend
+orchestrator=coordinating
 handoff_phase=qa_frontend
 ```
 
@@ -157,10 +185,16 @@ handoff_phase=qa_frontend
 2. Si nada bloquea → **validar el feature completo contra el ADR y los Contracts**
 3. Reportar al líder:
 ```
+orchestrator=awaiting_human
+orchestrator_ts=[fecha y hora actual]
 handoff_phase=awaiting_human
 handoff_message=Feature completo, validado contra el ADR y con QA. Listo para tu revisión.
 ```
 Notificar: _"🎯 Feature implementado, validado y con QA. Listo para tu revisión."_
+
+**`orchestrator=awaiting_human` no es opcional:** es lo que enciende el aviso
+"listo para tu revisión" y la notificación del dashboard. Si solo cambias
+`handoff_phase`, el líder no se entera.
 
 **NO marques `contexto=ready` ni `featuredocs=ready` todavía.** La documentación
 corre después de la aprobación, para no rehacerla si la revisión pide cambios.
@@ -172,8 +206,10 @@ corre después de la aprobación, para no rehacerla si la revisión pide cambios
 Cuando el líder aprueba la implementación (_"aprobado"_, _"se ve bien"_, _"adelante"_):
 ```
 aprobacion=approved
+aprobado_por=[líder]
 contexto=ready
 featuredocs=ready
+orchestrator=coordinating
 handoff_phase=docs
 ```
 Notificar: _"✅ Implementación aprobada. Activa Contexto y Documentador."_
@@ -191,10 +227,11 @@ Cuando el líder reporta un bug en vez de aprobar:
 
 Cuando `contexto=done` y `featuredocs=done`:
 1. Preparar el resumen del PR (código + documentación, todo en la misma branch)
-2. Reportar al líder: _"Todo listo. ¿Autorizas que cree el PR?"_
+2. Marcar `orchestrator=pr_ready` y reportar al líder:
+   _"Todo listo. ¿Autorizas que cree el PR?"_
 3. **Esperar la indicación explícita.** Sin ella, no creas el PR.
-4. Con la autorización → crear el PR contra la rama destino definida en
-   `agent-config.md` → `handoff_phase=pr_creado`
+4. Con la autorización → `handoff_phase=pr_autorizado` → crear el PR contra la
+   rama destino definida en `agent-config.md` → `handoff_phase=pr_creado`
 5. Notificar: _"✅ PR creado. El merge lo haces tú."_
 
 **Nunca hagas el merge.** Aunque el líder diga "ya está aprobado", el merge es suyo.
