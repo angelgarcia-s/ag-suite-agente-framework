@@ -67,11 +67,30 @@ En la terminal del **Orquestador**:
 
 ### 2. Activar cada agente
 
-Cuando el Orquestador notifique que un agente tiene trabajo, ve a esa terminal y escribe:
+**Si tu herramienta soporta mensajería entre sesiones, no tienes que hacer nada:**
+el Orquestador descubre las sesiones abiertas y activa a cada agente por mensaje
+cuando le toca. Los agentes le avisan de vuelta al terminar o al bloquearse, así
+que la cadena avanza sola y tú solo intervienes en el gate.
+
+**Si no está disponible**, el flujo cae al poll manual: cuando el Orquestador
+notifique que un agente tiene trabajo, ve a esa terminal y escribe:
 ```
 poll
 ```
-El agente lee `status.md`, detecta su estado `ready` y arranca automáticamente.
+El agente lee `status.md`, detecta su estado `ready` y arranca.
+
+La detección es automática y conductual: el Orquestador intenta usar la
+mensajería y, si no la tiene, te avisa que tendrás que hacer poll. No hay nada
+que configurar ni versión que revisar.
+
+> **Los nombres de las terminales son la dirección de cada agente.** Se generan
+> en `scripts/iniciar-agente.sh` con el formato `<proyecto> | <etiqueta>`. Si
+> cambias ese formato, el Orquestador deja de encontrar a los demás y todo cae al
+> poll manual.
+
+**`status.md` sigue siendo la fuente de verdad.** El mensaje solo avisa; el estado
+vive en el archivo. Por eso un agente que se reinicia retoma sin perder nada, y
+por eso los modos sesión única y Copilot funcionan igual sin mensajería.
 
 ### 3. Gate de aprobación humana
 

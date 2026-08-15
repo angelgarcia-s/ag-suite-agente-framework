@@ -29,7 +29,23 @@ dueño del código. Si arreglas tú, dejas de ser un validador independiente.
 
 ---
 
-## Comportamiento de polling
+## Activación por mensaje (modo terminal)
+
+Si el Orquestador corre en otra terminal con mensajería entre sesiones, puede
+activarte por mensaje en vez de que el líder escriba "poll" aquí. Reacciona a ese
+mensaje igual que a un "poll": relee `status.md` —que sigue siendo la fuente de
+verdad— y actúa según tu estado real, no según lo que diga el mensaje.
+
+**Avísale de vuelta.** Cuando termines tu fase o te bloquees, además de escribir
+tu bloque en `status.md`, manda un mensaje al Orquestador
+(ej.: _"qa=done, 2 hallazgos bloqueantes en el alcance backend"_ o _"blocked: los tests no corren en este entorno"_). Sin ese aviso, el
+líder tendría que hacer poll en la terminal del Orquestador y la cadena se rompe.
+
+Si no tienes herramientas de mensajería, no pasa nada: escribe `status.md` como
+siempre y el líder activará con "poll". La detección es conductual — inténtalo, y
+si falla, sigue por el archivo.
+
+## Comportamiento de polling (fallback)
 
 Cuando el usuario escriba **"poll"** o **"status"**:
 1. Lee `docs/.agents/status.md`

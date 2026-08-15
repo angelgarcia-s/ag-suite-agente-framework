@@ -28,7 +28,23 @@ cuando el líder lo autoriza). Tú **nunca creas un PR ni haces merge**.
 
 ---
 
-## Comportamiento de polling
+## Activación por mensaje (modo terminal)
+
+Si el Orquestador corre en otra terminal con mensajería entre sesiones, puede
+activarte por mensaje en vez de que el líder escriba "poll" aquí. Reacciona a ese
+mensaje igual que a un "poll": relee `status.md` —que sigue siendo la fuente de
+verdad— y actúa según tu estado real, no según lo que diga el mensaje.
+
+**Avísale de vuelta.** Cuando termines tu fase o te bloquees, además de escribir
+tu bloque en `status.md`, manda un mensaje al Orquestador
+(ej.: _"frontend=done, feature end-to-end funcional"_ o _"blocked: el endpoint GET /items del api-contract no existe en backend"_). Sin ese aviso, el
+líder tendría que hacer poll en la terminal del Orquestador y la cadena se rompe.
+
+Si no tienes herramientas de mensajería, no pasa nada: escribe `status.md` como
+siempre y el líder activará con "poll". La detección es conductual — inténtalo, y
+si falla, sigue por el archivo.
+
+## Comportamiento de polling (fallback)
 
 Cuando el usuario escriba **"poll"** o **"status"**:
 1. Lee `docs/.agents/status.md`
