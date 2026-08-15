@@ -4,12 +4,12 @@
 # Layout: 2 columnas x 3 filas
 #
 #  ┌─────────────────┬─────────────────┐
-#  │  Orquestador    │    Contexto     │
+#  │  Orquestador    │       QA        │
 #  ├─────────────────┼─────────────────┤
-#  │    Backend      │  Documentador   │
-#  ├─────────────────┴─────────────────┤
-#  │           Frontend                │
-#  └───────────────────────────────────┘
+#  │    Backend      │    Contexto     │
+#  ├─────────────────┼─────────────────┤
+#  │    Frontend     │  Documentador   │
+#  └─────────────────┴─────────────────┘
 #
 # Uso: osascript scripts/lanzar-agentes-iterm.applescript
 # O desde raíz: make agentes
@@ -31,36 +31,44 @@ tell application "iTerm2"
             set s2 to (split vertically with default profile)
         end tell
 
-        # Panel 2 — Contexto (arriba derecha)
+        # Panel 2 — QA (arriba derecha)
         tell s2
-            set name to "Contexto"
+            set name to "QA"
             write text "cd " & quoted form of rutaProyecto
-            write text "bash " & quoted form of scriptInicio & " contexto"
+            write text "bash " & quoted form of scriptInicio & " qa"
             set s3 to (split horizontally with default profile)
         end tell
 
-        # Panel 3 — Documentador (abajo derecha)
+        # Panel 3 — Contexto (centro derecha)
         tell s3
+            set name to "Contexto"
+            write text "cd " & quoted form of rutaProyecto
+            write text "bash " & quoted form of scriptInicio & " contexto"
+            set s4 to (split horizontally with default profile)
+        end tell
+
+        # Panel 4 — Documentador (abajo derecha)
+        tell s4
             set name to "Documentador"
             write text "cd " & quoted form of rutaProyecto
             write text "bash " & quoted form of scriptInicio & " documentador"
         end tell
 
-        # Volver a Panel 1 → abajo izquierda
+        # Volver a Panel 1 → columna izquierda
         tell first session
-            set s4 to (split horizontally with default profile)
-        end tell
-
-        # Panel 4 — Backend (abajo izquierda)
-        tell s4
-            set name to "Backend"
-            write text "cd " & quoted form of rutaProyecto
-            write text "bash " & quoted form of scriptInicio & " backend"
             set s5 to (split horizontally with default profile)
         end tell
 
-        # Panel 5 — Frontend (fila inferior)
+        # Panel 5 — Backend (centro izquierda)
         tell s5
+            set name to "Backend"
+            write text "cd " & quoted form of rutaProyecto
+            write text "bash " & quoted form of scriptInicio & " backend"
+            set s6 to (split horizontally with default profile)
+        end tell
+
+        # Panel 6 — Frontend (abajo izquierda)
+        tell s6
             set name to "Frontend"
             write text "cd " & quoted form of rutaProyecto
             write text "bash " & quoted form of scriptInicio & " frontend"

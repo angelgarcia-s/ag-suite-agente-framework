@@ -67,6 +67,10 @@ idioma_codigo=           # español | english (nombres de variables, funciones, 
 -
 -
 
+### QA — leer al arrancar:
+-
+-
+
 ### Contexto — leer al arrancar:
 -
 

@@ -24,6 +24,8 @@ Lee en este orden:
 
 Ejecuta el pipeline completo cambiando de rol según el estado:
 - Cuando toque Backend: adopta el rol de Agent.Backend
+- Cuando toque QA: adopta el rol de Agent.QA (obligatorio tras Backend y tras
+  Frontend — no lo saltes)
 - Cuando toque Frontend: adopta el rol de Agent.Frontend
 - Entre fases: vuelve al rol de Orquestador para validar
 
@@ -69,6 +71,11 @@ Continúa como Agent.Backend. Lee docs/.agents/status.md e implementa tu fase.
 
 ```
 Continúa como Agent.Frontend. Lee docs/.agents/status.md e implementa tu fase.
+```
+
+```
+Continúa como Agent.QA. Lee docs/.agents/status.md y valida el alcance indicado
+en qa_alcance. Reporta hallazgos, no los corrijas.
 ```
 
 ```

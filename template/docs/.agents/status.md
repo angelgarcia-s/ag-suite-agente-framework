@@ -50,6 +50,13 @@ frontend=idle
 frontend_ts=
 frontend_mensaje=
 
+# QA valida dos veces por ADR: tras Backend y tras Frontend.
+# qa_alcance (backend | frontend) lo escribe el Orquestador al pasar el testigo.
+qa=idle
+qa_ts=
+qa_mensaje=
+qa_alcance=
+
 contexto=idle
 contexto_ts=
 contexto_mensaje=

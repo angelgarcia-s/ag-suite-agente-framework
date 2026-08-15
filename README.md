@@ -2,7 +2,9 @@
 
 Sistema multiagente para desarrollo de software con Claude Code y GitHub Copilot.
 
-Pipeline autónomo de desarrollo: Orquestador → Backend → Frontend → Contexto → Documentador.
+Pipeline autónomo de desarrollo: Orquestador → Backend → QA → Frontend → QA → Contexto → Documentador.
+
+QA valida dos veces por ADR y es un paso obligatorio del pipeline.
 
 ---
 
@@ -107,6 +109,7 @@ proyecto/
         orchestrator.md
         backend.md
         frontend.md
+        qa.md
         context.md
         featuredocs.md
 ```
@@ -121,6 +124,7 @@ make agentes        # lanzar todos en iTerm2
 make orquestador    # agente individual
 make backend
 make frontend
+make qa
 make contexto
 make documentador
 ```
