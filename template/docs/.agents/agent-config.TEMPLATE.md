@@ -80,6 +80,9 @@ Desactiva los roles que no apliquen a tu proyecto. Un CLI, una API o una
 librería sin interfaz normalmente corren con `frontend=no`.
 El Orquestador salta los roles en `no` y no los espera en `status.md`.
 
+Si borras una de estas claves, ese rol queda **activo**: solo un `no` explícito
+lo apaga.
+
 ```
 rol_backend=si           # si | no
 rol_frontend=si          # si | no  — pon 'no' en proyectos sin UI

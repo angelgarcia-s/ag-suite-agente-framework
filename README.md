@@ -132,8 +132,38 @@ sin agregarlas**. Para ver el detalle:
 agente doctor
 ```
 
-Compara tu instancia contra el framework: versión, claves de config que te faltan
-y archivos del núcleo ausentes. No modifica nada.
+Compara tu instancia contra el framework: versión, claves de config que te faltan,
+archivos del núcleo ausentes, desfase del esquema de `status.md` y targets que le
+falten a tu Makefile. No modifica nada.
+
+### Actualizar un proyecto ya avanzado
+
+Tus ADRs, issues, contracts, features y `PROJECT_CONTEXT.md` **no se tocan**: el
+updater solo entra a `docs/.agents/` y `scripts/`.
+
+Dos cosas sí requieren atención:
+
+**1. Actualiza entre ADRs, no a media ADR.** Actualizar reemplaza los prompts y el
+flujo mientras hay trabajo en curso — y el flujo puede haber cambiado (por ejemplo,
+QA se volvió un paso obligatorio, y el gate pasó del commit al PR). El updater te
+avisa si detecta una ADR activa. Lo limpio es cerrar la ADR, mergear, correr
+`agente reset` y actualizar entonces.
+
+**2. Migra el esquema de `status.md`.** El updater **preserva** tu `status.md`
+porque es el estado vivo de tu pipeline, así que no recibe los campos que el núcleo
+agregó. Después de actualizar:
+
+```bash
+agente migrar-status
+```
+
+Reconstruye el archivo con el esquema nuevo **conservando tus valores** (ADR activa,
+issues completados, estados), preserva la bitácora, elimina los campos que el núcleo
+dejó de usar —mostrándote antes cuáles tenían valor— y guarda un respaldo en
+`status.md.bak`.
+
+Si tu `agent-config.md` es anterior a claves como `rol_*`, no pasa nada: **una clave
+ausente significa que el rol está activo**. Solo un `no` explícito apaga un rol.
 
 ---
 
