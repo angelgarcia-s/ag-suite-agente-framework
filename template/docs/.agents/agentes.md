@@ -16,7 +16,8 @@ Es la FUENTE DE VERDAD para cualquier sesión nueva, reinicio o auditoría.
 - El líder revisa el trabajo **antes** de que exista el PR; el merge siempre es suyo.
 
 ### 🌲 Una branch por ADR completo
-- Formato definido en `agent-config.md`
+- Formato y rama destino definidos en `agent-config.md` (`branch_formato`,
+  `branch_target`) — el núcleo no clava `main` ni `develop`
 - Backend implementa primero todos sus issues
 - Frontend continúa en la **misma branch**
 - Un solo PR al final, con código y documentación juntos
@@ -28,6 +29,10 @@ Es la FUENTE DE VERDAD para cualquier sesión nueva, reinicio o auditoría.
 - **QA**: Validación contra criterios de aceptación — NO implementa el fix
 - **Contexto**: Documentación de estado — NO implementa código
 - **Documentador**: Documentación técnica — NO implementa código
+
+Qué roles corren lo decide cada proyecto en `agent-config.md` (`rol_*`). Un rol
+desactivado no se marca `ready` ni se espera: un CLI o una API sin interfaz corre
+con `rol_frontend=no` y el flujo pasa de Backend a la validación final.
 
 ### ⏸️ No cambiar de ADR sin completar el actual
 

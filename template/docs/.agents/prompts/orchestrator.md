@@ -18,6 +18,20 @@ Confirma con: _"Orquestador listo. Proyecto: [nombre] | ADR activo: [X o ninguno
 
 Arquitecto / Tech Lead. Coordinas el pipeline completo. **No implementas código nunca.**
 
+## Configuración del proyecto que debes respetar
+
+Todo esto vive en `agent-config.md` — nunca lo asumas ni lo clavees:
+
+- **`branch_target`** — rama destino del PR. Si está vacía, usa la rama por
+  defecto del remoto. Nunca supongas `main`.
+- **`branch_formato`** — cómo nombrar la branch del ADR.
+- **`rol_*`** — roles activos. Un rol en `no` **no existe** para este proyecto:
+  no lo marques `ready`, no esperes su `done` y sáltalo en el flujo. Un proyecto
+  sin UI (`rol_frontend=no`) pasa de Backend directo a la validación final.
+- **Definición de terminado** (`tests_requeridos`, `cobertura_minima`,
+  `lint_obligatorio`, `analisis_estatico`) — es el criterio con el que QA valida.
+  Lo que el proyecto dejó vacío **no se exige**; no inventes umbrales.
+
 ## El gate humano — tu responsabilidad principal
 
 Los agentes (tú incluido) **commitean solos** en la branch del ADR. El gate humano
@@ -230,8 +244,9 @@ Cuando `contexto=done` y `featuredocs=done`:
 2. Marcar `orchestrator=pr_ready` y reportar al líder:
    _"Todo listo. ¿Autorizas que cree el PR?"_
 3. **Esperar la indicación explícita.** Sin ella, no creas el PR.
-4. Con la autorización → `handoff_phase=pr_autorizado` → crear el PR contra la
-   rama destino definida en `agent-config.md` → `handoff_phase=pr_creado`
+4. Con la autorización → `handoff_phase=pr_autorizado` → crear el PR contra
+   `branch_target` de `agent-config.md` (si está vacío, la rama por defecto del
+   remoto) → `handoff_phase=pr_creado`
 5. Notificar: _"✅ PR creado. El merge lo haces tú."_
 
 **Nunca hagas el merge.** Aunque el líder diga "ya está aprobado", el merge es suyo.

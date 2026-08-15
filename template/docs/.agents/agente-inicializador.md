@@ -11,13 +11,18 @@ Tu misión es analizar el proyecto actual y generar o actualizar
 
 ### Paso 1 — Detectar stack
 
-Lee estos archivos si existen:
+Busca el manifiesto de dependencias del proyecto — no asumas ningún ecosistema.
+Lee los que existan, y su archivo de versiones fijas si lo hay:
 
 ```
-composer.json          → stack backend, dependencias PHP
-package.json           → stack frontend, dependencias JS/TS
-composer.lock          → versiones exactas de paquetes PHP
-package-lock.json      → versiones exactas de paquetes JS
+package.json / package-lock.json      → Node, JS/TS
+composer.json / composer.lock         → PHP
+pyproject.toml / requirements.txt     → Python
+go.mod                                → Go
+Cargo.toml                            → Rust
+Gemfile / Gemfile.lock                → Ruby
+pom.xml / build.gradle                → Java, Kotlin
+*.csproj                              → .NET
 ```
 
 Detecta:
@@ -70,10 +75,11 @@ Detecta idioma y formato de commits.
 
 ### Paso 4 — Detectar patrones obligatorios
 
-Lee archivos de configuración existentes:
-- `.eslintrc`, `.prettierrc` → convenciones de código
-- `phpcs.xml`, `pint.json` → convenciones PHP
-- `tsconfig.json` → TypeScript config
+Lee los archivos de configuración que existan, sean del ecosistema que sean:
+- Linters y formateadores (`.eslintrc`, `.prettierrc`, `phpcs.xml`, `pint.json`,
+  `.rubocop.yml`, `ruff.toml`, `.editorconfig`, etc.)
+- Configuración de tipos o compilación (`tsconfig.json`, `mypy.ini`, etc.)
+- Configuración de tests (framework, comando, umbral de cobertura si lo hay)
 - Cualquier `CLAUDE.md`, `AGENTS.md`, `CONTRIBUTING.md`
 
 ### Paso 5 — Detectar lectura obligatoria por rol
@@ -135,6 +141,32 @@ idioma_codigo=[español|english — detectado del código]
 
 ---
 
+## 🌲 Git y ramas
+
+branch_target=[rama por defecto detectada del remoto, o vacío]
+branch_formato=[formato detectado del historial de ramas, o vacío]
+
+---
+
+## 👥 Roles activos
+
+rol_backend=[si|no — 'no' si no hay código de servidor]
+rol_frontend=[si|no — 'no' si es un CLI, una API o una librería sin UI]
+rol_qa=si
+rol_contexto=si
+rol_documentador=si
+
+---
+
+## ✅ Definición de terminado
+
+tests_requeridos=[tipos detectados de la config de tests, o vacío]
+cobertura_minima=[umbral detectado en la config, o VACÍO si no hay uno declarado]
+lint_obligatorio=[si|no — 'si' solo si hay linter configurado]
+analisis_estatico=[si|no — 'si' solo si hay análisis estático configurado]
+
+---
+
 ## 📖 Lectura obligatoria por rol
 
 ### Orquestador — leer al arrancar:
@@ -182,6 +214,12 @@ idioma_codigo=[español|english — detectado del código]
 ## Reglas del proceso
 
 **Nunca inventar** — solo documentar lo que realmente existe en el código.
+Esto aplica en particular a la definición de terminado: si el proyecto no declara
+un umbral de cobertura, deja `cobertura_minima` **vacío**. Un umbral inventado se
+convierte en un gate que QA hará cumplir sin que nadie lo haya decidido.
+
+**Detectar el ecosistema, no asumirlo** — el framework es agnóstico al stack.
+Los ejemplos de archivos son pistas de búsqueda, no una lista cerrada.
 
 **Ejemplos reales** — en "Componentes y patrones clave", usa fragmentos de código reales del proyecto, no genéricos.
 
