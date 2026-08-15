@@ -99,7 +99,22 @@ if [ -d "$RUTA_PROYECTO/docs/.agents" ]; then
     echo ""
     info "Actualizando archivos en el proyecto actual..."
 
-    cp -r "$FRAMEWORK_SRC/template/docs/.agents/prompts/." "$RUTA_PROYECTO/docs/.agents/prompts/"
+    # Prompts del núcleo: solo los .md de primer nivel. La subcarpeta
+    # prompts/proyecto/ es del usuario y NO se toca (igual que agent-config.md
+    # y status.md), porque ahí viven los agentes propios de su proyecto.
+    for prompt in "$FRAMEWORK_SRC"/template/docs/.agents/prompts/*.md; do
+        [ -f "$prompt" ] && cp "$prompt" "$RUTA_PROYECTO/docs/.agents/prompts/"
+    done
+
+    # La carpeta de agentes de proyecto se crea con su README solo si no existe.
+    if [ ! -d "$RUTA_PROYECTO/docs/.agents/prompts/proyecto" ]; then
+        mkdir -p "$RUTA_PROYECTO/docs/.agents/prompts/proyecto"
+        cp "$FRAMEWORK_SRC/template/docs/.agents/prompts/proyecto/README.md" \
+           "$RUTA_PROYECTO/docs/.agents/prompts/proyecto/"
+        ok "prompts/proyecto/ creado"
+    else
+        skip "prompts/proyecto/ — agentes de proyecto preservados"
+    fi
     cp "$FRAMEWORK_SRC/template/docs/.agents/agentes.md"              "$RUTA_PROYECTO/docs/.agents/"
     cp "$FRAMEWORK_SRC/template/docs/.agents/arranque-terminal.md"    "$RUTA_PROYECTO/docs/.agents/"
     cp "$FRAMEWORK_SRC/template/docs/.agents/arranque-sesion.md"      "$RUTA_PROYECTO/docs/.agents/"

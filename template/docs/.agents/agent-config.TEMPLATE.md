@@ -149,6 +149,42 @@ analisis_estatico=       # si | no
 
 ---
 
+## 🤖 Agentes de proyecto
+
+Agentes propios de ESTE proyecto, que el framework no conoce. Sus prompts viven
+en `docs/.agents/prompts/proyecto/` y el actualizador nunca los toca.
+
+Deja la sección vacía si no tienes ninguno — el pipeline corre igual.
+
+Declara uno por bloque, con este esquema:
+
+```
+[agente]
+nombre=                  # identificador corto, sin espacios: se usa como clave en status.md
+prompt=                  # ej: docs/.agents/prompts/proyecto/mi-agente.md
+activacion=              # cuándo lo enciende el Orquestador (ver abajo)
+estados=ready,done,n/a   # estados válidos para este agente en status.md
+```
+
+`activacion` describe la condición en lenguaje claro; el Orquestador la evalúa.
+Ejemplos: `post-implementacion` (junto a Contexto y Documentador),
+`manual` (solo cuando el líder lo pide), o una condición concreta como
+"cuando el ADR toca la interfaz pública".
+
+Los agentes de proyecto **heredan las reglas de oro**: commitean solos en la
+branch del ADR, no crean PRs y no mergean. Un prompt de proyecto **no puede**
+definir su propia política de commits ni saltarse el gate humano.
+
+<!-- Ejemplo (borra o reemplaza):
+[agente]
+nombre=ayuda
+prompt=docs/.agents/prompts/proyecto/ayuda.md
+activacion=post-implementacion
+estados=ready,done,n/a
+-->
+
+---
+
 ## 🚨 Reglas críticas del proyecto
 <!-- Reglas NO negociables específicas de este proyecto -->
 <!-- Ejemplos: multi-tenancy, permisos, i18n, etc. -->
