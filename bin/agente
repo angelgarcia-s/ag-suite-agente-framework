@@ -630,6 +630,7 @@ cmd_init() {
     _ca() { [ -f "$RUTA_PROYECTO/$1" ] && skip "$1"  || { printf '%s\n' "$2" > "$RUTA_PROYECTO/$1"; ok "$1"; }; }
 
     _cc "docs/.agents/prompts"
+    _cc "docs/.agents/prompts/proyecto"
     _cc "docs/adr"
     _cc "docs/issues"
     _cc "docs/contracts/models"
@@ -665,6 +666,7 @@ cmd_init() {
     _cp "$SRC/docs/.agents/prompts/qa.md"           "$RUTA_AGENTS/prompts/qa.md"
     _cp "$SRC/docs/.agents/prompts/context.md"      "$RUTA_AGENTS/prompts/context.md"
     _cp "$SRC/docs/.agents/prompts/featuredocs.md"  "$RUTA_AGENTS/prompts/featuredocs.md"
+    _cp "$SRC/docs/.agents/prompts/proyecto/README.md" "$RUTA_AGENTS/prompts/proyecto/README.md"
     _cp "$SRC/docs/.agents/agentes.md"              "$RUTA_AGENTS/agentes.md"
     _cp "$SRC/docs/.agents/arranque-terminal.md"    "$RUTA_AGENTS/arranque-terminal.md"
     _cp "$SRC/docs/.agents/arranque-sesion.md"      "$RUTA_AGENTS/arranque-sesion.md"

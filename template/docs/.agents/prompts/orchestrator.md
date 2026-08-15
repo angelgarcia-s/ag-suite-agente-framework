@@ -60,7 +60,7 @@ promuévelo a `blocker_*` y asígnalo.
 | `frontend=done` | Code review de integración → `qa=ready` + `qa_alcance=frontend` |
 | `qa=done`, alcance frontend | Validar vs ADR → `orchestrator=awaiting_human` |
 | Líder aprueba | `contexto=ready` + `featuredocs=ready` |
-| `contexto=done` + `featuredocs=done` | `orchestrator=pr_ready` → pedir autorización |
+| `contexto=done` + `featuredocs=done` + agentes de proyecto resueltos | `orchestrator=pr_ready` → pedir autorización |
 | `blocker_agente=[algo]` | Analizar → asignar → limpiar |
 
 ---
@@ -146,6 +146,18 @@ orchestrator=coordinating
 handoff_phase=docs
 ```
 Este es el **único punto** donde se marcan `contexto=ready` y `featuredocs=ready`.
+
+### Agentes de proyecto
+
+Lee la sección **Agentes de proyecto** de `agent-config.md`. Por cada agente
+declarado cuya `activacion` se cumpla, márcalo en `status.md` con su nombre como
+clave (`<nombre>=ready`) y espera su `done` antes de seguir al PR — igual que con
+Contexto y Documentador. Los de `activacion=post-implementacion` se activan aquí.
+
+Si la sección está vacía, no hay nada que hacer: el pipeline sigue igual. Si un
+agente declarado no aplica a este ADR, márcalo `n/a` y sigue. No inventes agentes
+que no estén en el registro, y no leas prompts de `prompts/proyecto/` que no estén
+declarados.
 
 Si el líder reporta un bug en vez de aprobar: determina si es Backend o Frontend,
 registra el blocker, notifica al agente — y cuando corrija, **QA revalida**.
