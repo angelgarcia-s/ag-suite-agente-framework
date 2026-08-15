@@ -17,6 +17,21 @@ GRIS="\033[0;90m"
 NEGRITA="\033[1m"
 RESET="\033[0m"
 
+# Claves de configuración GLOBALES del template.
+# Excluye la sección "Agentes de proyecto": ahí las claves (nombre, prompt,
+# activacion, estados) son de cada bloque [agente], no del proyecto, y
+# reportarlas como faltantes sería ruido. También ignora los ejemplos comentados.
+_claves_globales() {
+    awk '
+        /^## .*Agentes de proyecto/ { en_seccion = 1; next }
+        /^## / { en_seccion = 0 }
+        /<!--/ { en_comentario = 1 }
+        /-->/  { en_comentario = 0; next }
+        en_seccion || en_comentario { next }
+        /^[a-z_]+=/ { sub(/=.*/, ""); print }
+    ' "$1" | sort -u
+}
+
 ok()    { echo -e "  ${VERDE}✅${RESET} $1"; }
 warn()  { echo -e "  ${AMARILLO}⚠️ ${RESET} $1"; }
 info()  { echo -e "  ${AZUL}›${RESET}  $1"; }
@@ -28,8 +43,13 @@ linea
 echo -e "  ${NEGRITA}AG Suite Agent Framework — Actualizador${RESET}"
 linea
 echo ""
-warn "Solo se actualizarán archivos genéricos."
-warn "El agent-config.md y el status.md de tu proyecto NO se tocarán."
+echo -e "  ${NEGRITA}NUNCA se sobrescribe (es tuyo):${RESET}"
+echo -e "    ${GRIS}docs/.agents/agent-config.md${RESET}"
+echo -e "    ${GRIS}docs/.agents/status.md${RESET}"
+echo -e "    ${GRIS}docs/.agents/prompts/proyecto/*${RESET}   (tus agentes de proyecto)"
+echo -e "    ${GRIS}CLAUDE.md y AGENTS.md${RESET}             (solo se crean si faltan)"
+echo ""
+warn "Todo lo demás del núcleo se actualiza a la versión nueva."
 echo ""
 read -p "  ¿Continuar? (s/N): " CONTINUAR
 [[ "$CONTINUAR" != "s" && "$CONTINUAR" != "S" ]] && { echo "  Cancelado."; exit 0; }
@@ -70,6 +90,7 @@ cp "$FRAMEWORK_SRC/template/docs/.agents/arranque-sesion.md"      "$INSTALL_DIR/
 cp "$FRAMEWORK_SRC/template/docs/.agents/agente-inicializador.md" "$INSTALL_DIR/template/docs/.agents/"
 cp -r "$FRAMEWORK_SRC/template/scripts" "$INSTALL_DIR/template/"
 cp "$FRAMEWORK_SRC/bin/agente" "$INSTALL_DIR/bin/agente"
+cp "$FRAMEWORK_SRC/VERSION"    "$INSTALL_DIR/VERSION" 2>/dev/null || true
 
 # Plantillas base del framework — se refrescan SOLO en el install dir.
 # Son la fuente de la que 'agente init' copia en proyectos nuevos; sin esto
@@ -108,15 +129,19 @@ if [ -d "$RUTA_PROYECTO/docs/.agents" ]; then
         [ -f "$prompt" ] && cp "$prompt" "$RUTA_PROYECTO/docs/.agents/prompts/"
     done
 
-    # La carpeta de agentes de proyecto se crea con su README solo si no existe.
-    if [ ! -d "$RUTA_PROYECTO/docs/.agents/prompts/proyecto" ]; then
-        mkdir -p "$RUTA_PROYECTO/docs/.agents/prompts/proyecto"
+    # Carpeta de agentes de proyecto: los prompts del usuario NO se tocan, pero
+    # el README es documentación del núcleo y debe llegar aunque la carpeta ya
+    # exista (una instancia vieja la tiene sin README).
+    mkdir -p "$RUTA_PROYECTO/docs/.agents/prompts/proyecto"
+    if [ -f "$RUTA_PROYECTO/docs/.agents/prompts/proyecto/README.md" ]; then
         cp "$FRAMEWORK_SRC/template/docs/.agents/prompts/proyecto/README.md" \
            "$RUTA_PROYECTO/docs/.agents/prompts/proyecto/"
-        ok "prompts/proyecto/ creado"
     else
-        skip "prompts/proyecto/ — agentes de proyecto preservados"
+        cp "$FRAMEWORK_SRC/template/docs/.agents/prompts/proyecto/README.md" \
+           "$RUTA_PROYECTO/docs/.agents/prompts/proyecto/"
+        ok "prompts/proyecto/README.md instalado"
     fi
+    skip "prompts/proyecto/*.md — tus agentes de proyecto, preservados"
     cp "$FRAMEWORK_SRC/template/docs/.agents/agentes.md"              "$RUTA_PROYECTO/docs/.agents/"
     cp "$FRAMEWORK_SRC/template/docs/.agents/arranque-terminal.md"    "$RUTA_PROYECTO/docs/.agents/"
     cp "$FRAMEWORK_SRC/template/docs/.agents/arranque-sesion.md"      "$RUTA_PROYECTO/docs/.agents/"
@@ -149,6 +174,45 @@ if [ -d "$RUTA_PROYECTO/docs/.agents" ]; then
     fi
 
     ok "Proyecto actualizado"
+
+    # ── Registrar la versión aplicada en la instancia ────────────────────────
+    # Es la única clave que el updater escribe en agent-config.md, y solo esa
+    # línea: sin ella no hay forma de saber con qué versión corre la instancia.
+    VERSION_NUEVA="$(cat "$FRAMEWORK_SRC/VERSION" 2>/dev/null || echo "")"
+    CONFIG_PROYECTO="$RUTA_PROYECTO/docs/.agents/agent-config.md"
+    if [ -n "$VERSION_NUEVA" ] && [ -f "$CONFIG_PROYECTO" ]; then
+        if grep -q "^framework_version=" "$CONFIG_PROYECTO"; then
+            VERSION_ANTERIOR="$(grep '^framework_version=' "$CONFIG_PROYECTO" | head -1 | cut -d= -f2 | xargs)"
+            TMP_CFG="$(mktemp)"
+            sed "s|^framework_version=.*|framework_version=$VERSION_NUEVA|" "$CONFIG_PROYECTO" > "$TMP_CFG" \
+                && mv "$TMP_CFG" "$CONFIG_PROYECTO"
+            ok "Versión registrada: ${VERSION_ANTERIOR:-sin registrar} → $VERSION_NUEVA"
+        else
+            # Config de una instancia anterior al versionado: se agrega la clave
+            # al final sin tocar nada de lo que el usuario ya escribió.
+            printf '\n---\n\n## 🏷 Versión del framework\n\n```\nframework_version=%s\n```\n' \
+                "$VERSION_NUEVA" >> "$CONFIG_PROYECTO"
+            ok "Versión registrada: $VERSION_NUEVA (clave agregada)"
+        fi
+    fi
+
+    # ── Reportar claves de config nuevas, sin tocarlas ───────────────────────
+    TEMPLATE_CFG="$FRAMEWORK_SRC/template/docs/.agents/agent-config.TEMPLATE.md"
+    if [ -f "$TEMPLATE_CFG" ] && [ -f "$CONFIG_PROYECTO" ]; then
+        FALTANTES=""
+        while IFS= read -r clave; do
+            grep -q "^$clave=" "$CONFIG_PROYECTO" || FALTANTES="$FALTANTES $clave"
+        done < <(_claves_globales "$TEMPLATE_CFG")
+
+        if [ -n "$FALTANTES" ]; then
+            echo ""
+            warn "Claves de configuración nuevas disponibles (NO se agregaron):"
+            for c in $FALTANTES; do echo -e "    ${AMARILLO}$c${RESET}"; done
+            echo ""
+            info "Son opcionales. Agrégalas a mano si quieres usarlas."
+            info "Detalle completo: agente doctor"
+        fi
+    fi
 fi
 
 # ─── Limpiar ─────────────────────────────────────────────────────────────────

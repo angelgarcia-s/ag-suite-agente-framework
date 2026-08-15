@@ -59,6 +59,7 @@ info "Instalando en $INSTALL_DIR..."
 mkdir -p "$INSTALL_DIR"
 cp -r "$FRAMEWORK_SRC/template" "$INSTALL_DIR/"
 cp -r "$FRAMEWORK_SRC/bin" "$INSTALL_DIR/"
+cp "$FRAMEWORK_SRC/VERSION" "$INSTALL_DIR/VERSION" 2>/dev/null || true
 
 chmod +x "$INSTALL_DIR/bin/agente"
 chmod +x "$INSTALL_DIR/template/scripts/iniciar-agente.sh" 2>/dev/null

@@ -1,10 +1,14 @@
 #!/bin/bash
 
 # ─────────────────────────────────────────────────────────────────────────────
-#  AG Suite Agent Framework — CLI v1.0.2
+#  AG Suite Agent Framework — CLI
 # ─────────────────────────────────────────────────────────────────────────────
 
-VERSION="1.0.2"
+# La versión vive en el archivo VERSION del framework, no clavada aquí, para que
+# 'agente doctor' pueda comparar la del framework contra la de la instancia.
+_leer_version_framework() {
+    cat "$RUTA_FRAMEWORK/VERSION" 2>/dev/null || echo "desconocida"
+}
 
 _resolver_ruta_framework() {
     local origen="$0"
@@ -16,6 +20,7 @@ _resolver_ruta_framework() {
     echo "$(cd "$(dirname "$origen")/.." && pwd)"
 }
 RUTA_FRAMEWORK="$(_resolver_ruta_framework)"
+VERSION="$(_leer_version_framework)"
 
 _encontrar_raiz() {
     local dir="$PWD"
@@ -782,13 +787,158 @@ Genera el agent-config.md completo y actualizado. Empieza con: # agent-config.md
         separador
     fi
 
+    # Registrar con qué versión se generó la instancia, para que 'agente doctor'
+    # y el actualizador puedan comparar después.
+    if [ -f "$RUTA_AGENTS/agent-config.md" ] && [ "$VERSION" != "desconocida" ]; then
+        if grep -q "^framework_version=" "$RUTA_AGENTS/agent-config.md"; then
+            local TMP_CFG
+            TMP_CFG="$(mktemp)"
+            sed "s|^framework_version=.*|framework_version=$VERSION|" \
+                "$RUTA_AGENTS/agent-config.md" > "$TMP_CFG" && mv "$TMP_CFG" "$RUTA_AGENTS/agent-config.md"
+        else
+            printf '\n---\n\n## 🏷 Versión del framework\n\n```\nframework_version=%s\n```\n' \
+                "$VERSION" >> "$RUTA_AGENTS/agent-config.md"
+        fi
+    fi
+
     echo ""
     separador
-    echo -e "  ${VERDE}${NEGRITA}✅ Framework inicializado${RESET}"
+    echo -e "  ${VERDE}${NEGRITA}✅ Framework inicializado${RESET}  ${GRIS}v$VERSION${RESET}"
     separador
     echo ""
     info "Revisa docs/.agents/agent-config.md"
     info "Ejecuta: agente start"
+    echo ""
+}
+
+# ─── Doctor ───────────────────────────────────────────────────────────────────
+# La instancia preserva su agent-config.md, así que nunca ve las claves que el
+# núcleo agrega con el tiempo. Doctor las reporta SIN tocar los valores del
+# usuario: compara contra el template versionado y lista lo que falta.
+cmd_doctor() {
+    local TEMPLATE="$RUTA_FRAMEWORK/template/docs/.agents/agent-config.TEMPLATE.md"
+    local CONFIG="$RUTA_AGENTS/agent-config.md"
+
+    echo ""
+    separador
+    echo -e "  ${NEGRITA}$(nombre_proyecto) — Doctor${RESET}"
+    separador
+    echo ""
+
+    if [ ! -f "$CONFIG" ]; then
+        error "No hay agent-config.md en este proyecto."
+        info "Inicializa con: agente init"
+        echo ""
+        exit 1
+    fi
+
+    # ── Versiones ──
+    local V_FRAMEWORK V_INSTANCIA
+    V_FRAMEWORK="$(_leer_version_framework)"
+    V_INSTANCIA="$(leer_config framework_version)"
+    V_INSTANCIA="${V_INSTANCIA:-no registrada}"
+
+    echo -e "  ${NEGRITA}Versión${RESET}"
+    echo ""
+    printf "  %-22s %s\n" "Framework instalado:" "$V_FRAMEWORK"
+    printf "  %-22s %s\n" "Instancia generada con:" "$V_INSTANCIA"
+    if [ "$V_INSTANCIA" != "$V_FRAMEWORK" ]; then
+        echo ""
+        warn "La instancia no está en la versión del framework."
+        info "Corre 'actualizar.sh' para traer lo nuevo."
+    fi
+    echo ""
+
+    # ── Claves de config nuevas ──
+    if [ ! -f "$TEMPLATE" ]; then
+        warn "No se encontró el template de config en el framework."
+        echo ""
+        exit 0
+    fi
+
+    # Claves GLOBALES del template. Se excluye la sección "Agentes de proyecto"
+    # (sus claves son de cada bloque [agente], no del proyecto) y los ejemplos
+    # comentados, para no reportar como faltante algo que no es una clave global.
+    local FALTANTES=()
+    local clave
+    while IFS= read -r clave; do
+        grep -q "^$clave=" "$CONFIG" || FALTANTES+=("$clave")
+    done < <(awk '
+        /^## .*Agentes de proyecto/ { en_seccion = 1; next }
+        /^## / { en_seccion = 0 }
+        /<!--/ { en_comentario = 1 }
+        /-->/  { en_comentario = 0; next }
+        en_seccion || en_comentario { next }
+        /^[a-z_]+=/ { sub(/=.*/, ""); print }
+    ' "$TEMPLATE" | sort -u)
+
+    linea_fina
+    echo ""
+    echo -e "  ${NEGRITA}Claves de configuración${RESET}"
+    echo ""
+    if [ ${#FALTANTES[@]} -eq 0 ]; then
+        ok "Tu agent-config.md tiene todas las claves del template."
+    else
+        warn "Hay ${#FALTANTES[@]} clave(s) disponibles que tu config no declara:"
+        echo ""
+        for clave in "${FALTANTES[@]}"; do
+            echo -e "    ${AMARILLO}$clave${RESET}"
+        done
+        echo ""
+        info "Son opcionales: nada se rompe sin ellas."
+        info "Si quieres usarlas, agrégalas a mano — el updater NO toca tu config."
+        info "Referencia: $TEMPLATE"
+    fi
+    echo ""
+
+    # ── Archivos core que faltan ──
+    linea_fina
+    echo ""
+    echo -e "  ${NEGRITA}Archivos del núcleo${RESET}"
+    echo ""
+    local ARCHIVO CORE_FALTANTES=0
+    for ARCHIVO in \
+        "docs/.agents/agentes.md" \
+        "docs/.agents/status.md" \
+        "docs/.agents/prompts/orchestrator.md" \
+        "docs/.agents/prompts/backend.md" \
+        "docs/.agents/prompts/frontend.md" \
+        "docs/.agents/prompts/qa.md" \
+        "docs/.agents/prompts/context.md" \
+        "docs/.agents/prompts/featuredocs.md" \
+        "docs/.agents/prompts/api-architect.md" \
+        "docs/.agents/prompts/api-contract-reviewer.md" \
+        "docs/.agents/prompts/proyecto/README.md" \
+        "scripts/iniciar-agente.sh" \
+        "scripts/ci-checks.sh" \
+        "CLAUDE.md" \
+        "AGENTS.md"
+    do
+        if [ ! -e "$RUTA_PROYECTO/$ARCHIVO" ]; then
+            echo -e "    ${AMARILLO}falta${RESET}  $ARCHIVO"
+            CORE_FALTANTES=$((CORE_FALTANTES + 1))
+        fi
+    done
+    if [ "$CORE_FALTANTES" -eq 0 ]; then
+        ok "Todos los archivos del núcleo están presentes."
+    else
+        echo ""
+        info "Corre 'actualizar.sh' para traerlos."
+    fi
+
+    # ── CLAUDE.md puntero ──
+    if [ -f "$RUTA_PROYECTO/CLAUDE.md" ]; then
+        local LINEAS
+        LINEAS=$(wc -l < "$RUTA_PROYECTO/CLAUDE.md" | tr -d ' ')
+        if [ "$LINEAS" -gt 80 ]; then
+            echo ""
+            warn "CLAUDE.md tiene $LINEAS líneas — debería ser un puntero delgado."
+            info "Si tiene stack o reglas inline, muévelas a agent-config.md."
+        fi
+    fi
+
+    echo ""
+    separador
     echo ""
 }
 
@@ -809,6 +959,7 @@ cmd_help() {
     echo ""
     echo -e "  ${NEGRITA}Pipeline${RESET}"
     echo -e "  ${VERDE}init${RESET}                Inicializa el framework en este proyecto"
+    echo -e "  ${VERDE}doctor${RESET}              Compara tu instancia con el framework y reporta lo que falta"
     echo -e "  ${VERDE}dashboard${RESET}           Monitoreo del pipeline con notificaciones (solo observa)"
     echo -e "  ${VERDE}status${RESET}              Estado rápido del pipeline"
     echo -e "  ${VERDE}reset${RESET}               Limpia status.md después de merge"
@@ -995,6 +1146,7 @@ case "${1:-start}" in
     terminal)       _launcher_start_terminal ;;
     sesion)         cmd_sesion ;;
     init)           cmd_init ;;
+    doctor)         cmd_doctor ;;
     dashboard)      cmd_dashboard ;;
     status)         cmd_status ;;
     reset)          cmd_reset ;;
