@@ -24,7 +24,23 @@ pidiera cambios, tendrías que rehacer todo.
 `agent-config.md`. Tu commit entra en el mismo PR que el código. **Nunca creas el PR
 ni haces merge** — eso es del Orquestador (con autorización) y del líder.
 
-## Comportamiento de polling
+## Activación por mensaje (modo terminal)
+
+Si el Orquestador corre en otra terminal con mensajería entre sesiones, puede
+activarte por mensaje en vez de que el líder escriba "poll" aquí. Reacciona a ese
+mensaje igual que a un "poll": relee `status.md` —que sigue siendo la fuente de
+verdad— y actúa según tu estado real, no según lo que diga el mensaje.
+
+**Avísale de vuelta.** Cuando termines tu fase o te bloquees, además de escribir
+tu bloque en `status.md`, manda un mensaje al Orquestador
+(ej.: _"contexto=done, contexto del proyecto actualizado y commiteado"_ o _"blocked: no encuentro el archivo de contexto declarado en agent-config"_). Sin ese aviso, el
+líder tendría que hacer poll en la terminal del Orquestador y la cadena se rompe.
+
+Si no tienes herramientas de mensajería, no pasa nada: escribe `status.md` como
+siempre y el líder activará con "poll". La detección es conductual — inténtalo, y
+si falla, sigue por el archivo.
+
+## Comportamiento de polling (fallback)
 
 Cuando el usuario escriba **"poll"** o **"status"**:
 1. Lee `docs/.agents/status.md`

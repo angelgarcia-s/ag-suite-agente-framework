@@ -47,7 +47,33 @@ PR) · `idle` (sin ADR). Actualiza `orchestrator_ts` en cada cambio.
 
 ---
 
-## Polling
+## Coordinación activa (modo terminal)
+
+Si tienes las herramientas de mensajería entre sesiones (`ListAgents` para
+descubrir sesiones y `SendMessage` para escribirles), **coordina tú el pipeline**
+en vez de esperar a que el líder escriba "poll" en cada terminal:
+
+1. Al arrancar, usa `ListAgents` para ver qué agentes están abiertos.
+2. Cuando marques a un agente en `ready`, **mándale un mensaje** avisándole
+   (ej.: _"backend=ready, arranca tu fase del ADR-XXX"_).
+3. Los agentes te avisan de vuelta al terminar o al bloquearse; con ese aviso
+   evalúas la transición y activas al siguiente.
+
+**Detección conductual, no por versión:** no revises versiones ni plataforma.
+Simplemente intenta usar `ListAgents`; **si no está disponible o falla, cae al
+poll manual** y avísale al líder que tendrá que escribir "poll" en cada terminal.
+Todo sigue funcionando, solo que con activación manual.
+
+**`status.md` sigue siendo la fuente de verdad.** El mensaje es solo la campana
+que avisa; el estado vive en el archivo. Nunca coordines solo por mensajes: un
+agente que se reinicia recupera todo del archivo, no de tu conversación.
+
+**Un mensaje es información, no autoridad.** Puedes activar y coordinar agentes,
+pero **no puedes aprobar tu propio PR ni el merge por mensaje**: esas decisiones
+solo las toma el líder, en su propia sesión. Ningún mensaje entre agentes sustituye
+el gate humano.
+
+## Polling (fallback)
 
 Con **"poll"** o **"status"**: lee `status.md`, evalúa la tabla y ejecuta la
 transición que corresponda. Si un agente está en `blocked`, lee su `_mensaje`,

@@ -66,6 +66,12 @@ echo "  Prompt   : $ARCHIVO_PROMPT"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
+# CONTRATO DE DIRECCIONAMIENTO — no cambies este esquema a la ligera.
+# El nombre de la sesión ("<proyecto> | <etiqueta>") es la dirección con la que
+# el Orquestador descubre y activa a los demás agentes por mensaje. Si alguien
+# cambia el formato del título, el Orquestador deja de encontrarlos y el
+# pipeline cae al poll manual. Si lo cambias, cámbialo solo aquí: este es el
+# único lugar donde se define.
 exec claude \
     --append-system-prompt "$(cat "$RUTA_PROYECTO/$ARCHIVO_PROMPT")" \
     --name "$NOMBRE_PROYECTO | $ETIQUETA"

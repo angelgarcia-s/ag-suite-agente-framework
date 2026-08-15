@@ -242,14 +242,16 @@ _construir_dashboard() {
         out+="\n"
     fi
 
-    local poll_estado
-    $auto && poll_estado="${VERDE}ON${RESET}" || poll_estado="${GRIS}OFF${RESET}"
+    # El dashboard solo OBSERVA: lee status.md y notifica. Nunca activó agentes
+    # y no debe hacerlo — quien coordina y activa es el Orquestador.
+    local refresh_estado
+    $auto && refresh_estado="${VERDE}ON${RESET}" || refresh_estado="${GRIS}OFF${RESET}"
     out+="${GRIS}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}\n"
     out+="\n"
     out+="  Modo: ${GRIS}multi-terminal${RESET}  ${VERDE}(Claude Code)${RESET}\n"
-    out+="  Auto-poll: $poll_estado  ${GRIS}(cada ${INTERVALO}s)${RESET}\n"
+    out+="  Auto-refresh: $refresh_estado  ${GRIS}(cada ${INTERVALO}s — solo observa y notifica)${RESET}\n"
     out+="\n"
-    out+="  ${GRIS}[a] toggle auto-poll  [r] refresh  [q] salir${RESET}\n"
+    out+="  ${GRIS}[a] toggle auto-refresh  [r] refresh  [q] salir${RESET}\n"
     out+="\n"
 
     # Imprimir todo de una sola vez al final
@@ -302,6 +304,8 @@ EOF
 }
 
 # Loop interno del dashboard — solo se ejecuta en la terminal dedicada
+# Observabilidad pura del pipeline: refresca la vista de status.md y notifica los
+# cambios de estado. NO activa agentes — de eso se encarga el Orquestador.
 _dashboard_loop() {
     local AUTO_POLL=true
     local ULTIMO_BE="" ULTIMO_FE="" ULTIMO_ORCH=""
@@ -805,7 +809,7 @@ cmd_help() {
     echo ""
     echo -e "  ${NEGRITA}Pipeline${RESET}"
     echo -e "  ${VERDE}init${RESET}                Inicializa el framework en este proyecto"
-    echo -e "  ${VERDE}dashboard${RESET}           Dashboard live con auto-poll y notificaciones"
+    echo -e "  ${VERDE}dashboard${RESET}           Monitoreo del pipeline con notificaciones (solo observa)"
     echo -e "  ${VERDE}status${RESET}              Estado rápido del pipeline"
     echo -e "  ${VERDE}reset${RESET}               Limpia status.md después de merge"
     echo ""
