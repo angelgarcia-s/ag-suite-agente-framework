@@ -80,6 +80,8 @@ cp "$FRAMEWORK_SRC/template/docs/.agents/status.md"                "$INSTALL_DIR
 cp "$FRAMEWORK_SRC/template/Makefile"                              "$INSTALL_DIR/template/"
 cp "$FRAMEWORK_SRC/template/CLAUDE.md"                             "$INSTALL_DIR/template/"
 cp "$FRAMEWORK_SRC/template/AGENTS.md"                             "$INSTALL_DIR/template/"
+mkdir -p "$INSTALL_DIR/template/.github/workflows"
+cp "$FRAMEWORK_SRC/template/.github/workflows/agentes-ci.yml"      "$INSTALL_DIR/template/.github/workflows/"
 
 chmod +x "$INSTALL_DIR/bin/agente"
 chmod +x "$INSTALL_DIR/template/scripts/iniciar-agente.sh" 2>/dev/null
@@ -120,7 +122,7 @@ if [ -d "$RUTA_PROYECTO/docs/.agents" ]; then
     cp "$FRAMEWORK_SRC/template/docs/.agents/arranque-sesion.md"      "$RUTA_PROYECTO/docs/.agents/"
     cp "$FRAMEWORK_SRC/template/docs/.agents/agente-inicializador.md" "$RUTA_PROYECTO/docs/.agents/"
 
-    for script in iniciar-agente.sh lanzar-agentes-iterm.applescript lanzar-agentes-terminal.sh; do
+    for script in iniciar-agente.sh lanzar-agentes-iterm.applescript lanzar-agentes-terminal.sh ci-checks.sh; do
         [ -d "$RUTA_PROYECTO/scripts" ] && cp "$FRAMEWORK_SRC/template/scripts/$script" "$RUTA_PROYECTO/scripts/$script"
     done
 
@@ -137,6 +139,14 @@ if [ -d "$RUTA_PROYECTO/docs/.agents" ]; then
     done
     chmod +x "$RUTA_PROYECTO/scripts/iniciar-agente.sh" 2>/dev/null
     chmod +x "$RUTA_PROYECTO/scripts/lanzar-agentes-terminal.sh" 2>/dev/null
+    chmod +x "$RUTA_PROYECTO/scripts/ci-checks.sh" 2>/dev/null
+
+    # Workflow de CI: se refresca solo si el proyecto ya lo tiene instalado.
+    if [ -f "$RUTA_PROYECTO/.github/workflows/agentes-ci.yml" ]; then
+        cp "$FRAMEWORK_SRC/template/.github/workflows/agentes-ci.yml" \
+           "$RUTA_PROYECTO/.github/workflows/agentes-ci.yml"
+        ok "workflow de CI actualizado"
+    fi
 
     ok "Proyecto actualizado"
 fi

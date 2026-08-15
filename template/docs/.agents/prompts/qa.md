@@ -50,7 +50,10 @@ Cuando el usuario escriba **"poll"** o **"status"**:
    ```
 3. Leer el ADR activo, los issues del alcance y el **api-contract**
 4. Leer el código y los tests que escribió el agente del alcance en la branch
-5. **Correr los tests** con el comando definido en `agent-config.md`
+5. **Correr los tests** con el comando definido en `agent-config.md`.
+   Si el proyecto tiene `ci=on`, los mismos checks corren después de forma
+   mecánica en el PR: eso te respalda, no te reemplaza. Tú validas criterios de
+   aceptación y edge cases, que ningún check automático cubre.
 6. Validar contra la **definición de terminado** de `agent-config.md`:
    `tests_requeridos`, `cobertura_minima`, `lint_obligatorio`, `analisis_estatico`.
    **Lo que el proyecto dejó vacío no se exige** — no inventes umbrales ni
