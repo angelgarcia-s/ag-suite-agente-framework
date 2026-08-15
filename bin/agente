@@ -688,8 +688,20 @@ cmd_init() {
     _cp "$SRC/scripts/iniciar-agente.sh"                "$RUTA_PROYECTO/scripts/iniciar-agente.sh"
     _cp "$SRC/scripts/lanzar-agentes-iterm.applescript" "$RUTA_PROYECTO/scripts/lanzar-agentes-iterm.applescript"
     _cp "$SRC/scripts/lanzar-agentes-terminal.sh"       "$RUTA_PROYECTO/scripts/lanzar-agentes-terminal.sh"
+    _cp "$SRC/scripts/ci-checks.sh"                     "$RUTA_PROYECTO/scripts/ci-checks.sh"
     _cp "$SRC/Makefile"                                 "$RUTA_PROYECTO/Makefile"
-    chmod +x "$RUTA_PROYECTO/scripts/iniciar-agente.sh" "$RUTA_PROYECTO/scripts/lanzar-agentes-terminal.sh" 2>/dev/null
+    chmod +x "$RUTA_PROYECTO/scripts/iniciar-agente.sh" "$RUTA_PROYECTO/scripts/lanzar-agentes-terminal.sh" \
+             "$RUTA_PROYECTO/scripts/ci-checks.sh" 2>/dev/null
+
+    # Plantilla de workflow de CI. Solo se instala si el proyecto ya usa GitHub
+    # Actions o si activa el perfil; sin ci=on el archivo no estorba porque el
+    # script sale temprano.
+    _cc "docs/.agents"
+    if [ -d "$RUTA_PROYECTO/.github/workflows" ] || [ -d "$RUTA_PROYECTO/.github" ]; then
+        _cp "$SRC/.github/workflows/agentes-ci.yml" "$RUTA_PROYECTO/.github/workflows/agentes-ci.yml"
+    else
+        skip ".github/workflows/agentes-ci.yml — copia la plantilla si activas ci=on"
+    fi
 
     echo ""
     echo -e "  ${NEGRITA}Generando agent-config.md:${RESET}"

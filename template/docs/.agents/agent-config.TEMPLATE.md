@@ -149,6 +149,44 @@ analisis_estatico=       # si | no
 
 ---
 
+## 🔧 Perfil OPT-IN — CI
+
+**Apagado por defecto.** Le da verificación mecánica a los gates que sin esto son
+solo texto en un prompt. Corre **en el PR** y condiciona el merge (que hace el
+líder) a que los checks activos pasen.
+
+Cada check se activa por separado y **necesita su comando declarado**: sin comando
+no corre, y `ci-checks.sh` lo reporta como no ejecutado en vez de darlo por bueno.
+
+```
+ci=off                        # on | off
+
+check_tests=si                # respalda a QA
+comando_tests=
+
+check_lint=no                 # estilo y formato
+comando_lint=
+
+check_static_analysis=no      # tipos y bugs antes de runtime — distinto de lint
+comando_static_analysis=
+
+check_secret_scan=no          # que ninguna credencial se cuele
+comando_secret_scan=
+
+# Estos dos solo corren si rest_openapi=on
+check_openapi_validate=no
+comando_openapi_validate=
+
+check_oasdiff=no              # breaking changes de API contra el baseline
+comando_oasdiff=
+```
+
+La lógica vive en `scripts/ci-checks.sh`, no en el YAML del proveedor: puedes
+correrlo a mano (`./scripts/ci-checks.sh`) o portarlo a otro host de CI sin
+reescribir los checks. Si tu proyecto no tiene CI, deja `ci=off` y nada cambia.
+
+---
+
 ## 🔌 Perfil OPT-IN — API REST con OpenAPI
 
 **Apagado por defecto.** Actívalo solo si el proyecto expone una API REST para

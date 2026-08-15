@@ -1,0 +1,48 @@
+# Sistema Multiagente — CI
+#
+# Este workflow es un INVOCADOR DELGADO a propósito: toda la lógica vive en
+# scripts/ci-checks.sh. Si algún día cambias de proveedor de CI, portas este
+# archivo (unas líneas) y el script sigue igual.
+#
+# No agregues lógica de checks aquí. Los comandos concretos se declaran en
+# docs/.agents/agent-config.md.
+#
+# Requisitos del proyecto: si tus checks necesitan un runtime (Node, PHP, Python,
+# Go...), agrega su paso de setup en "Preparar entorno". El framework no asume
+# ninguno.
+
+name: Agentes CI
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  checks:
+    name: Checks de agent-config
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Historia completa: los diffs contra la rama destino (por ejemplo el
+          # de breaking changes de API) necesitan el punto de comparación.
+          fetch-depth: 0
+
+      # ─── Preparar entorno ────────────────────────────────────────────────
+      # Agrega aquí el setup de tu stack y la instalación de dependencias.
+      # Ejemplos (descomenta y ajusta el que aplique):
+      #
+      # - uses: actions/setup-node@v4
+      #   with: { node-version: '22', cache: 'npm' }
+      # - run: npm ci
+      #
+      # - uses: actions/setup-python@v5
+      #   with: { python-version: '3.12' }
+      # - run: pip install -r requirements.txt
+
+      - name: Correr checks
+        run: |
+          chmod +x scripts/ci-checks.sh
+          ./scripts/ci-checks.sh
