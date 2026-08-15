@@ -40,14 +40,32 @@ echo -e "  ${NEGRITA}No toca ningún proyecto.${RESET} Para aplicarlo a uno, des
 echo -e "  ${VERDE}agente actualizar proyecto${RESET} desde su raíz."
 echo ""
 
-# Se lee de /dev/tty y no de stdin: con 'curl ... | bash' el script llega POR
-# stdin, así que un 'read' normal recibe EOF, contesta vacío y el actualizador
-# se cancelaba solo sin actualizar nada. Si no hay terminal (CI), se continúa.
-if [ -t 0 ] || [ -e /dev/tty ]; then
-    read -p "  ¿Continuar? (s/N): " CONTINUAR < /dev/tty 2>/dev/null || CONTINUAR="s"
+# La pregunta se imprime con printf y NO con 'read -p': read -p escribe el
+# prompt en stderr, así que al silenciar stderr (necesario para que un /dev/tty
+# ausente no ensucie la salida) la pregunta se volvía invisible y el script
+# parecía colgado esperando una entrada que nadie sabía que debía dar.
+#
+# Se lee de /dev/tty y no de stdin porque con 'curl ... | bash' el script llega
+# POR stdin: un read normal recibiría EOF y el actualizador se cancelaría solo.
+printf "  ¿Continuar? (s/N): "
+# Tres casos, y el orden importa:
+#  1. Hay terminal usable -> se pregunta ahí. Es el caso de 'bash <(curl ...)'
+#     y de la ejecución normal.
+#  2. No hay terminal pero stdin SÍ lo es -> se lee de stdin.
+#  3. Ni terminal ni stdin interactivo -> NO se lee nada y se continúa avisando.
+#     Con 'curl ... | bash' stdin es el propio script: leer de ahí consumiría
+#     una línea de código como si fuera la respuesta del usuario.
+# El 2>/dev/null va ANTES de < /dev/tty: las redirecciones se aplican en orden,
+# y si va después el error de una terminal ausente ya se imprimió.
+if [ -e /dev/tty ] && read CONTINUAR 2>/dev/null < /dev/tty; then
+    :
+elif [ -t 0 ]; then
+    read CONTINUAR 2>/dev/null || CONTINUAR="n"
 else
     CONTINUAR="s"
+    echo "(sin terminal para confirmar — se continúa)"
 fi
+echo ""
 [[ "$CONTINUAR" != "s" && "$CONTINUAR" != "S" ]] && { echo "  Cancelado."; exit 0; }
 echo ""
 

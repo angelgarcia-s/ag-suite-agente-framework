@@ -59,13 +59,21 @@ linea_fina(){ echo -e "${GRIS}────────────────�
 # Confirmación robusta. Lee de la terminal cuando la hay (para que funcione aun
 # si el script llegó por una tubería) y de stdin cuando no, para que se pueda
 # automatizar con 'echo s | agente ...'. Sin ninguna de las dos, no asume un sí.
+# El prompt se imprime con printf y NO con 'read -p': read -p lo escribe en
+# stderr, y al silenciar stderr la pregunta desaparecía dejando el proceso
+# aparentemente colgado, esperando una entrada invisible.
 _confirmar() {
     local prompt="$1" respuesta=""
-    if [ -e /dev/tty ] && [ -t 1 ]; then
-        read -p "$prompt" respuesta < /dev/tty 2>/dev/null || respuesta=""
+    printf "%s" "$prompt"
+    # Se intenta la terminal primero y se cae a stdin si no hay una usable, para
+    # que funcione interactivo y automatizado. El 2>/dev/null va ANTES de
+    # < /dev/tty: si va después, el error de una terminal ausente ya se imprimió.
+    if [ -e /dev/tty ] && read respuesta 2>/dev/null < /dev/tty; then
+        :
     else
-        read -p "$prompt" respuesta 2>/dev/null || respuesta=""
+        read respuesta 2>/dev/null || respuesta=""
     fi
+    echo ""
     [[ "$respuesta" == "s" || "$respuesta" == "S" ]]
 }
 
