@@ -149,6 +149,47 @@ analisis_estatico=       # si | no
 
 ---
 
+## 🔌 Perfil OPT-IN — API REST con OpenAPI
+
+**Apagado por defecto.** Actívalo solo si el proyecto expone una API REST para
+apps o terceros. Un proyecto sin API REST, o cuyo tráfico es server-rendered o de
+props a páginas, **no activa este perfil**: esa disciplina contract-first es otra
+y no pasa por OpenAPI.
+
+```
+rest_openapi=off         # on | off
+spec_ubicacion=          # ej: docs/api/v{N}/ — dónde vive el spec y su baseline
+generador=               # herramienta que genera OpenAPI DESDE EL CÓDIGO
+generador_config=        # ruta a su configuración, si tiene
+diff_breaking=           # herramienta de diff de breaking changes en CI
+cliente_tipado=off       # on | off — generar cliente tipado desde el spec
+dictamen_reviewer=consultivo   # vinculante | consultivo (el líder siempre puede hacer override)
+rondas_maximas=2         # rondas Architect<->Reviewer antes de escalar al líder
+trigger_agentes=recurso público nuevo, v2, o invocación manual sobre superficie existente
+```
+
+El código es la fuente de verdad: el spec se **genera**, no se escribe a mano.
+
+### Convenciones de plataforma de la API
+
+Las decisiones ya tomadas de este proyecto. Los agentes las **consumen**, no las
+reinventan por endpoint. Deja vacío lo que no aplique.
+
+```
+api_auth=                # ej: Bearer token | OAuth2 | API key
+api_forma_errores=       # la forma de error de casa, con un ejemplo del shape
+api_paginacion=          # el shape de paginación de casa
+api_versionado=          # política: dónde va la versión, cuándo sube, soporte y deprecación
+api_scope_tenant=        # cómo se resuelve el tenant/organización (header, claim, etc.)
+api_glosario=            # términos del dominio que un consumidor externo confundiría
+```
+
+<!-- api_glosario importa más de lo que parece: si dos entidades del dominio
+     suenan intercambiables pero una es la cuenta de facturación y otra la unidad
+     de aislamiento, documéntalo o los consumidores externos lo van a mezclar. -->
+
+---
+
 ## 🤖 Agentes de proyecto
 
 Agentes propios de ESTE proyecto, que el framework no conoce. Sus prompts viven

@@ -89,6 +89,26 @@ Endpoints en api-contract: [N]
 
 ---
 
+### Perfil API (solo si `rest_openapi=on`)
+
+Si el perfil está `off`, ignora esta sección por completo.
+
+Con el perfil activo, el **día a día no usa agentes**: los endpoints dentro de
+recursos existentes se cubren con el generador y el gate de CI.
+
+Activa a **API-Architect** y luego a **API-Contract-Reviewer** solo cuando se
+cumpla `trigger_agentes`: superficie pública nueva, versión mayor nueva, o
+invocación manual del líder sobre una superficie ya construida. El flujo es:
+spec funcional → Architect diseña el fragmento → Reviewer dictamina (máximo
+`rondas_maximas` rondas, luego escalas al líder) → aprobado → ADR/issues →
+Backend implementa **contra el contrato** → gate de salida: se regenera el spec y
+el diff confirma que lo implementado coincide con lo diseñado.
+
+Si el Architect te regresa una decisión de plataforma (auth nuevo, subir versión
+mayor), trátala como **ADR** antes de seguir.
+
+---
+
 ## Fase 1 — Code review de Backend (`backend=done`)
 
 1. Leer los archivos modificados en la branch
