@@ -57,7 +57,12 @@ Cuando el usuario escriba **"poll"** o **"status"**:
 5. Commitear con formato de `agent-config.md`:
    `docs(features): se documenta [feature] ([ADR-XXX])`
    `docs(contracts): se documenta contract [modelo] ([ADR-XXX])`
-6. Actualizar `status.md`: `featuredocs=done`
+6. Actualizar `status.md` — solo tu bloque, sin reescribir el archivo:
+   ```
+   featuredocs=done
+   featuredocs_ts=[fecha y hora actual]
+   featuredocs_mensaje=Documentación generada y commiteada
+   ```
 7. Reportar: _"✅ Documentación generada y commiteada: [lista de archivos]"_
 
 ---

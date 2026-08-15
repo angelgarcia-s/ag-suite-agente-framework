@@ -44,15 +44,21 @@ Cuando el usuario escriba **"poll"** o **"status"**:
 1. Leer el ADR activo
 2. Leer el **api-contract** obligatoriamente — es tu fuente de verdad de endpoints
 3. Verificar que los endpoints del api-contract existen en la implementación de backend:
-   - Si falta alguno → NO inventar → reportar blocker:
+   - Si falta alguno → NO inventar → marcar tu propio bloque (la sección de
+     blocker es del Orquestador, no la escribas):
      ```
-     blocker_agente=frontend
-     blocker_detalle=Endpoint [ruta] del api-contract no encontrado en backend
+     frontend=blocked
+     frontend_ts=[fecha y hora actual]
+     frontend_mensaje=Endpoint [ruta] del api-contract no encontrado en backend
      ```
    - Notificar: _"⚠️ Blocker reportado. Orquestador debe resolver."_
 4. Leer los issues de frontend asignados
 5. Confirmar branch correcta — misma branch que usó backend
-6. Actualizar `status.md`: `frontend=in_progress`
+6. Actualizar `status.md`: `frontend=in_progress` + `frontend_ts` con
+   `date '+%Y-%m-%d %H:%M'`. Escribe **solo tu bloque** (`frontend`,
+   `frontend_ts`, `frontend_mensaje`), relee antes de escribir y nunca reescribas
+   el archivo completo — Backend puede estar trabajando en paralelo.
+   Protocolo en `agentes.md`.
 7. Implementar issues secuencialmente
 8. Seguir estrictamente los patrones de `agent-config.md`:
    - Componentes disponibles y cómo usarlos
@@ -62,8 +68,8 @@ Cuando el usuario escriba **"poll"** o **"status"**:
 10. Al terminar:
    ```
    frontend=done
-   handoff_from=frontend
-   handoff_message=Issues [lista] implementados y commiteados. Feature end-to-end funcional.
+   frontend_ts=[fecha y hora actual]
+   frontend_mensaje=Issues [lista] implementados y commiteados. Feature end-to-end funcional.
    ```
 11. Reportar: _"✅ Frontend completo y commiteado. Feature end-to-end listo."_
 
@@ -73,11 +79,11 @@ reporte al líder. Si QA encuentra algo bloqueante, te llegará como `frontend=n
 ### Cuando `frontend=needs_fix`
 1. Leer `blocker_detalle` en `status.md`
 2. Aplicar corrección y **commitearla**
-3. Actualizar `status.md`:
+3. Actualizar `status.md` (solo tus campos — el blocker lo limpia el Orquestador):
    ```
    frontend=done
-   blocker_agente=
-   blocker_detalle=
+   frontend_ts=[fecha y hora actual]
+   frontend_mensaje=Corregido: [qué se corrigió]
    ```
 4. Reportar: _"✅ Corrección aplicada: [descripción]."_
 

@@ -57,6 +57,54 @@ nada de lo posterior lo hace un agente.
 
 ---
 
+## 📡 Protocolo de `status.md`
+
+`status.md` es un archivo compartido que varios procesos leen y escriben a la vez
+(en modo terminal, Backend y Frontend corren en paralelo). Sin disciplina de
+escritura se pierden actualizaciones. Estas reglas son obligatorias:
+
+1. **Ownership** — cada campo tiene un solo dueño. Escribe únicamente los campos
+   de tu bloque; nunca los de otro agente.
+2. **El estado es un testigo** — el Orquestador escribe `ready` y `needs_fix` en
+   el campo de un agente (le pasa el testigo); el agente escribe `in_progress`,
+   `done` y `blocked` en su propio campo. Nunca escriben los dos a la vez.
+3. **Relee antes de escribir** — vuelve a leer el archivo justo antes de cada
+   escritura; otro agente pudo cambiarlo desde tu última lectura.
+4. **Edición quirúrgica** — modifica solo tus líneas. **Nunca reescribas el
+   archivo completo**: eso es exactamente lo que pisa el trabajo de los demás.
+   (La única excepción es el Orquestador al resetear el pipeline tras el merge,
+   cuando ya no hay nadie más trabajando.)
+5. **Timestamp** — al cambiar tu estado, actualiza tu campo `_ts` con
+   `date '+%Y-%m-%d %H:%M'`.
+6. **Bitácora append-only** — los eventos se agregan al final del archivo; nadie
+   edita ni borra lo que ya está escrito.
+
+### Quién escribe qué
+
+| Campos | Dueño |
+|--------|-------|
+| `adr`, `titulo`, `branch`, `api_contract`, `iniciado` | Orquestador |
+| `orchestrator`, `orchestrator_ts` | Orquestador |
+| `<agente>`, `<agente>_ts`, `<agente>_mensaje` | Ese agente (salvo `ready`/`needs_fix`, que los pone el Orquestador) |
+| `backend_issues`, `frontend_issues`, `completados` | Orquestador |
+| `handoff_phase`, `handoff_message` | Orquestador — **ningún agente escribe aquí** |
+| `blocker_agente`, `blocker_detalle` | Orquestador — **ningún agente escribe aquí** |
+| `aprobacion`, `aprobado_por`, `nota` | Orquestador, reflejando la decisión del líder |
+| Bitácora | Cualquiera, solo agregando al final |
+
+### Cómo reportar un blocker
+
+Un agente bloqueado **no escribe la sección de blocker**. Pone su propio estado en
+`blocked`, explica en su campo `_mensaje`, y deja que el Orquestador lo promueva:
+
+```
+frontend=blocked
+frontend_ts=2026-08-14 11:30
+frontend_mensaje=Endpoint GET /api/items del api-contract no existe en backend
+```
+
+---
+
 ## 🧠 Agent.Orchestrator
 
 ### Rol
@@ -95,11 +143,16 @@ grep "^backend=" docs/.agents/status.md | cut -d= -f2
 ```
 
 ### Cómo escribir en status.md
-Editar el archivo directamente cambiando el valor de la clave:
+Editar la línea de la clave, sin reescribir el archivo:
 ```
 backend=done          # ✅ correcto
 backend: done         # ❌ incorrecto — no usar formato markdown
 ```
+Además de los estados, el Orquestador mantiene su propio campo `orchestrator=`
+al día: `coordinating` mientras reparte trabajo, `reviewing` durante un code
+review, `awaiting_human` cuando reporta que está listo para la revisión del
+líder, y `pr_ready` cuando la documentación terminó y espera la autorización del
+PR. El dashboard (`agente dashboard`) lee ese campo para avisar al líder.
 
 ### Prohibido
 - Implementar features o lógica de negocio
