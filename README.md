@@ -10,13 +10,19 @@ QA valida dos veces por ADR y es un paso obligatorio del pipeline.
 
 ## Instalación
 
-Desde la raíz de tu proyecto:
-
 ```bash
 curl -fsSL https://raw.githubusercontent.com/angelgarcia-s/ag-suite-agente-framework/main/instalar.sh | bash
 ```
 
-El instalador crea la estructura, copia los archivos y genera tu `agent-config.md` desde el template.
+El instalador coloca el framework en `~/.ag-suite-agente-framework` y deja
+disponible el comando `agente`. Después, desde la raíz de tu proyecto:
+
+```bash
+agente init
+```
+
+`agente init` crea la estructura, copia los archivos del núcleo y genera tu
+`agent-config.md` detectando el stack real del proyecto.
 
 ---
 
@@ -83,14 +89,51 @@ explícita y **ningún agente hace merge**.
 
 ---
 
+## Perfiles opt-in
+
+Apagados por defecto. Si no los activas, nada cambia.
+
+| Perfil | Clave | Qué agrega |
+|---|---|---|
+| **CI** | `ci=on` | Verificación mecánica en el PR: tests, lint, análisis estático, secret-scan. La lógica vive en `scripts/ci-checks.sh` (portable, corre también a mano); el workflow solo lo invoca. Los comandos los declaras tú. |
+| **API REST con OpenAPI** | `rest_openapi=on` | Spec generado desde el código y dos agentes (`API-Architect` y `API-Contract-Reviewer`) que se activan solo al diseñar superficie pública nueva o una versión mayor. |
+
+## Agentes de proyecto
+
+¿Necesitas un agente que solo tiene sentido en tu repo? Ponlo en
+`docs/.agents/prompts/proyecto/` y decláralo en la sección **Agentes de proyecto**
+de `agent-config.md`. El framework aporta el slot y el protocolo de activación; el
+actualizador nunca toca esa carpeta.
+
+Heredan las reglas de oro: commitean solos, no crean PRs y no mergean.
+
 ## Actualizar el framework
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/tu-usuario/agente-framework/main/actualizar.sh | bash
+curl -fsSL https://raw.githubusercontent.com/angelgarcia-s/ag-suite-agente-framework/main/actualizar.sh | bash
 ```
 
-Solo actualiza los archivos genéricos (prompts, scripts, reglas).
-Tu `agent-config.md` y `status.md` nunca se tocan.
+Trae los archivos del núcleo nuevos y actualiza los existentes, incluida la
+versión del framework, que queda registrada en tu instancia.
+
+**Nunca se sobrescribe** (es tuyo):
+
+| Archivo | Por qué |
+|---|---|
+| `docs/.agents/agent-config.md` | Es la configuración de tu proyecto |
+| `docs/.agents/status.md` | Es el estado vivo de tu pipeline |
+| `docs/.agents/prompts/proyecto/*.md` | Son tus agentes de proyecto |
+| `CLAUDE.md` y `AGENTS.md` | Solo se crean si faltan |
+
+Cuando el núcleo agrega claves de configuración nuevas, el updater **las reporta
+sin agregarlas**. Para ver el detalle:
+
+```bash
+agente doctor
+```
+
+Compara tu instancia contra el framework: versión, claves de config que te faltan
+y archivos del núcleo ausentes. No modifica nada.
 
 ---
 
@@ -124,6 +167,25 @@ proyecto/
 ---
 
 ## Comandos disponibles
+
+### CLI `agente` (recomendado)
+
+```bash
+agente              # launcher interactivo — punto de entrada
+agente init         # inicializa el framework en este proyecto
+agente doctor       # compara tu instancia con el framework
+agente start iterm  # abre los 6 agentes en paneles de iTerm2
+agente start sesion # modo sesión única (Copilot, Cursor, cualquier LLM)
+agente dashboard    # monitoreo del pipeline con notificaciones
+agente status       # estado rápido
+agente run backend  # inicia un agente en esta terminal
+agente reset        # limpia status.md después del merge
+agente help         # todos los comandos
+```
+
+Roles: `orquestador` · `backend` · `frontend` · `qa` · `contexto` · `documentador`
+
+### Makefile (equivalente, dentro del proyecto)
 
 ```bash
 make ayuda          # ver todos los comandos

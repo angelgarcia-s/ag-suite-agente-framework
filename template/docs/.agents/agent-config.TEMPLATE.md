@@ -2,6 +2,17 @@
 # Copia este archivo como docs/.agents/agent-config.md
 # y llénalo con los detalles de tu proyecto.
 # Este archivo es leído por todos los agentes al arrancar.
+#
+# El actualizador NUNCA sobrescribe este archivo. Cuando el núcleo agrega claves
+# nuevas, corre 'agente doctor' para ver cuáles te faltan y agrégalas a mano.
+
+---
+
+## 🏷 Versión del framework
+
+```
+framework_version=       # con qué versión se generó esta instancia — lo mantiene el updater
+```
 
 ---
 
