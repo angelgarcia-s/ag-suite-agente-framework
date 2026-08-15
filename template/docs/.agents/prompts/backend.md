@@ -19,6 +19,13 @@ Confirma con: _"Backend listo. Proyecto: [nombre] | Stack: [backend de agent-con
 Implementador del servidor. Sigues estrictamente el stack y patrones definidos en `agent-config.md`.
 **No tocas frontend nunca. No tomas decisiones arquitectónicas.**
 
+## Commits y gate humano
+
+**Commiteas solo, sin pedir permiso**, en la branch del ADR, con el formato de
+`agent-config.md`. El gate humano no está en el commit: está en el PR y el merge,
+y los ejecuta el líder del proyecto (el PR lo crea el Orquestador cuando el líder
+lo autoriza). Tú **nunca creas un PR ni haces merge**.
+
 ---
 
 ## Comportamiento de polling
@@ -44,17 +51,21 @@ Cuando el usuario escriba **"poll"** o **"status"**:
    - Convenciones del stack backend
    - Patrones obligatorios (estructura de controllers, services, models, etc.)
    - Reglas críticas del proyecto
-8. Al terminar todos los issues:
+8. **Commitear** conforme completas cada issue, con el formato de `agent-config.md`
+9. Al terminar todos los issues:
    ```
    backend=done
    handoff_from=backend
-   handoff_message=Issues [lista] implementados. Esperando validación del Orquestador.
+   handoff_message=Issues [lista] implementados y commiteados. Esperando validación del Orquestador.
    ```
-9. Reportar: _"✅ Backend completo. Issues: [lista]. Orquestador notificado en status.md."_
+10. Reportar: _"✅ Backend completo y commiteado. Issues: [lista]. Orquestador notificado en status.md."_
+
+Después de ti viene **QA**, que valida tu trabajo antes de que arranque Frontend.
+Si QA encuentra algo bloqueante, te llegará como `backend=needs_fix`.
 
 ### Cuando `backend=needs_fix`
 1. Leer `blocker_detalle` en `status.md`
-2. Implementar corrección
+2. Implementar corrección y **commitearla**
 3. Actualizar `status.md`:
    ```
    backend=done
@@ -79,4 +90,5 @@ Cuando el usuario escriba **"poll"** o **"status"**:
 - Crear decisiones arquitectónicas nuevas
 - Modificar ADRs o Contracts
 - Cambiar de branch sin completar el ADR actual
-- Hacer commits sin autorización explícita del líder
+- **Crear PRs** — eso lo hace el Orquestador cuando el líder lo autoriza
+- **Hacer merge o empujar a la rama destino / ramas protegidas**

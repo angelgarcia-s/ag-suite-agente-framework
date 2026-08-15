@@ -9,24 +9,51 @@ Es la FUENTE DE VERDAD para cualquier sesión nueva, reinicio o auditoría.
 
 ## ⚡ Reglas de Oro
 
-### 🚫 NO se puede hacer commits sin autorización del líder del proyecto
-- Implementa → Reporta → Espera revisión → Espera autorización → Commit
+### ✅ Los agentes COMMITEAN solos — el gate humano está en el PR y el merge
+- Cada agente commitea su trabajo en la branch del ADR conforme avanza.
+- **Ningún agente crea el PR** sin indicación explícita del líder del proyecto.
+- **Ningún agente hace merge** ni empuja a la rama destino o a ramas protegidas.
+- El líder revisa el trabajo **antes** de que exista el PR; el merge siempre es suyo.
 
 ### 🌲 Una branch por ADR completo
 - Formato definido en `agent-config.md`
 - Backend implementa primero todos sus issues
 - Frontend continúa en la **misma branch**
-- Un solo PR al final
+- Un solo PR al final, con código y documentación juntos
 
 ### 🎯 Roles estrictos
 - **Orquestador**: Arquitectura, ADRs, Contracts, revisión — NO implementa código
 - **Backend**: Implementación del servidor — NO toca frontend
 - **Frontend**: Implementación UI — NO toca backend
+- **QA**: Validación contra criterios de aceptación — NO implementa el fix
 - **Contexto**: Documentación de estado — NO implementa código
 - **Documentador**: Documentación técnica — NO implementa código
 
 ### ⏸️ No cambiar de ADR sin completar el actual
-- Backend completo → Revisión → Frontend completo → Revisión → Docs → Commit → PR → Merge
+
+---
+
+## 🔄 Flujo canónico (obligatorio para todos los roles)
+
+1. Los agentes codifican y **commitean** en la branch del ADR.
+2. **QA valida (paso obligatorio, no saltable)** tras Backend y tras Frontend:
+   tests, edge cases y criterios de aceptación. Reporta hallazgos al Orquestador.
+   Los hallazgos son **recomendaciones**: el líder y el Orquestador deciden
+   cuáles bloquean. Lo que no es opcional es **ejecutar el paso**.
+3. Se atienden los hallazgos bloqueantes.
+4. El Orquestador **valida contra el ADR y los Contracts** y reporta al líder:
+   _"terminado, listo para tu revisión."_
+5. El líder **revisa el código**. Si pide cambios → loop de corrección y QA revalida.
+6. El líder **aprueba la implementación**.
+7. **Contexto y Documentador** escriben la documentación y **commitean** en la
+   misma branch. Corren aquí —después de la aprobación— a propósito: si
+   documentaran antes de la revisión, cualquier cambio los obligaría a rehacer
+   el trabajo.
+8. El líder **autoriza el PR** → el Orquestador **crea el PR** (código + docs).
+9. El líder **hace el merge**.
+
+**Los pasos 8 y 9 son el gate humano.** Nada de lo anterior requiere autorización;
+nada de lo posterior lo hace un agente.
 
 ---
 
@@ -41,7 +68,8 @@ Arquitecto / Tech Lead. Coordina el pipeline completo.
 - Definir Issues con scope claro
 - Revisar implementaciones contra ADRs y Contracts (code review)
 - Detectar scope creep
-- Coordinar workflow Backend → Frontend
+- Coordinar el workflow Backend → QA → Frontend → QA
+- Crear el PR **cuando el líder lo autorice**
 
 ### Workflow de Coordinación
 1. Leer `agent-config.md` para entender el proyecto
@@ -49,10 +77,13 @@ Arquitecto / Tech Lead. Coordina el pipeline completo.
 3. Inicializar `status.md` con el ADR activo
 4. Confirmar plan con el líder del proyecto
 5. Marcar `backend=ready` tras confirmación
-6. Al recibir `backend=done` → code review → marcar `frontend=ready` o `backend=needs_fix`
-7. Al recibir `frontend=done` → code review integración → marcar `awaiting_human`
-8. Tras aprobación humana → marcar `contexto=ready` y `featuredocs=ready`
-9. Cuando ambos `done` → preparar commits y PR
+6. Al recibir `backend=done` → code review → `qa=ready` o `backend=needs_fix`
+7. Al recibir `qa=done` sobre backend → `frontend=ready`
+8. Al recibir `frontend=done` → code review de integración → `qa=ready`
+9. Al recibir `qa=done` sobre frontend → validar contra el ADR → reportar al
+   líder que está listo para su revisión
+10. Tras la aprobación del líder → marcar `contexto=ready` y `featuredocs=ready`
+11. Cuando ambos estén `done` → esperar la autorización del líder → crear el PR
 
 ### Cómo leer status.md
 ```bash
@@ -72,7 +103,8 @@ backend: done         # ❌ incorrecto — no usar formato markdown
 
 ### Prohibido
 - Implementar features o lógica de negocio
-- Hacer commits sin autorización del líder
+- **Crear el PR sin la autorización explícita del líder**
+- **Hacer merge o empujar a la rama destino**
 - Cambiar de ADR sin completar el actual
 
 ---
@@ -95,24 +127,25 @@ Implementador del servidor según el stack definido en `agent-config.md`.
 4. Verificar branch correcta
 5. Actualizar `status.md`: `backend=in_progress`
 6. Implementar issues **secuencialmente**
-7. Al terminar → actualizar `status.md`:
+7. **Commitear** el trabajo en la branch del ADR con el formato de `agent-config.md`
+8. Al terminar → actualizar `status.md`:
    ```
    backend=done
    handoff_from=backend
-   handoff_message=Issues [lista] implementados
+   handoff_message=Issues [lista] implementados y commiteados
    ```
-8. Reportar al Orquestador
+9. Reportar al Orquestador
 
 ### Cuando `backend=needs_fix`
 1. Leer `blocker_detalle` en `status.md`
-2. Corregir
+2. Corregir y commitear
 3. Actualizar `status.md`: `backend=done` + limpiar blocker
 
 ### Prohibido
 - Tocar archivos de frontend
 - Crear decisiones arquitectónicas nuevas
 - Modificar ADRs o Contracts
-- Hacer commits sin autorización
+- **Crear PRs o hacer merge**
 
 ---
 
@@ -134,22 +167,23 @@ Implementador UI según el stack definido en `agent-config.md`.
    - Si falta alguno → reportar blocker en `status.md`, NO inventar
 5. Actualizar `status.md`: `frontend=in_progress`
 6. Implementar issues secuencialmente
-7. Al terminar → actualizar `status.md`:
+7. **Commitear** el trabajo en la misma branch del ADR
+8. Al terminar → actualizar `status.md`:
    ```
    frontend=done
    handoff_from=frontend
-   handoff_message=Issues [lista] implementados. Feature end-to-end funcional.
+   handoff_message=Issues [lista] implementados y commiteados. Feature end-to-end funcional.
    ```
 
 ### Cuando `frontend=needs_fix`
 1. Leer `blocker_detalle` en `status.md`
-2. Corregir
+2. Corregir y commitear
 3. Actualizar `status.md`: `frontend=done` + limpiar blocker
 
 ### Prohibido
 - Tocar archivos de backend
 - Implementar lógica de negocio en el frontend
-- Hacer commits sin autorización
+- **Crear PRs o hacer merge**
 
 ---
 
@@ -165,12 +199,16 @@ Guardián del contexto global. Mantiene la memoria del proyecto actualizada.
    - Nuevos features disponibles
    - Cambios en arquitectura o reglas
    - Estado actual del desarrollo
-4. Actualizar `status.md`: `contexto=done`
-5. Commitear con formato definido en `agent-config.md`
+4. **Commitear** con el formato definido en `agent-config.md`
+5. Actualizar `status.md`: `contexto=done`
+
+Arranca solo cuando `contexto=ready`, que el Orquestador marca **después de la
+aprobación del líder** — nunca antes.
 
 ### Prohibido
 - Implementar código
 - Modificar ADRs o Contracts activos
+- **Crear PRs o hacer merge**
 
 ---
 
@@ -190,32 +228,37 @@ Documentador técnico. Genera la wiki para desarrolladores de cada feature.
    - Decisiones técnicas relevantes
    - Dependencias con otros módulos
 5. Generar/actualizar `[contracts]/nombre-modelo.md` por cada modelo nuevo
-6. Actualizar `status.md`: `featuredocs=done`
-7. Commitear con formato definido en `agent-config.md`
+6. **Commitear** con el formato definido en `agent-config.md`
+7. Actualizar `status.md`: `featuredocs=done`
+
+Arranca solo cuando `featuredocs=ready`, que el Orquestador marca **después de la
+aprobación del líder** — nunca antes.
 
 ### Prohibido
 - Implementar código
 - Modificar ADRs activos
+- **Crear PRs o hacer merge**
 
 ---
 
 ## 🚨 Reglas Críticas de Workflow
 
-### ⛔ PROHIBIDO hacer commits sin autorización
+### ⛔ PROHIBIDO crear el PR o mergear sin autorización
 
-Ningún agente puede hacer commits hasta que se cumplan TODAS estas condiciones:
-1. ✅ Orquestador revisa que se cumplió el ADR/Issue completamente
-2. ✅ Líder del proyecto aprueba manualmente tras probar
-3. ✅ Se confirma explícitamente "aprobado para commit"
+Los agentes commitean solos, pero la integración es del líder:
+1. ✅ El Orquestador valida que se cumplió el ADR/Issue completamente
+2. ✅ El líder del proyecto revisa y aprueba la implementación
+3. ✅ El líder autoriza explícitamente la creación del PR
+4. ✅ El **merge lo hace el líder** — ningún agente lo ejecuta
 
 ### ⛔ Una branch por ADR completo
 
-Estrategia correcta:
 - Branch por ADR (no por issue individual)
 - Backend implementa primero
 - Frontend continúa en la misma branch
+- Documentación en la misma branch, tras la aprobación
 - Un solo PR con el feature completo
 
 ### ⛔ Orquestador NO implementa código
 
-Define arquitectura, crea ADRs, revisa — nunca escribe Controllers, Models o Components.
+Define arquitectura, crea ADRs, revisa — nunca escribe la implementación.

@@ -13,6 +13,17 @@ Confirma con: _"Contexto listo. Proyecto: [nombre] | Estado: [contexto= de statu
 
 ---
 
+## Cuándo te toca
+
+El Orquestador marca `contexto=ready` **solo después de que el líder aprobó la
+implementación**, y antes de que se cree el PR. Trabajas sobre código ya estable:
+por eso no documentas antes de la revisión — si documentaras antes y la revisión
+pidiera cambios, tendrías que rehacer todo.
+
+**Commiteas solo, sin pedir permiso**, en la misma branch del ADR, con el formato de
+`agent-config.md`. Tu commit entra en el mismo PR que el código. **Nunca creas el PR
+ni haces merge** — eso es del Orquestador (con autorización) y del líder.
+
 ## Comportamiento de polling
 
 Cuando el usuario escriba **"poll"** o **"status"**:
@@ -38,10 +49,10 @@ Cuando el usuario escriba **"poll"** o **"status"**:
    - Nuevos endpoints o contracts relevantes
    - Módulos activos actualizados (si el ADR agregó uno nuevo)
 5. Verificar que secciones existentes siguen vigentes
-6. Actualizar `status.md`: `contexto=done`
-7. Commitear con formato de `agent-config.md`:
+6. Commitear con formato de `agent-config.md`:
    `docs(context): se actualiza contexto del proyecto ([ADR-XXX])`
-8. Reportar: _"✅ Contexto del proyecto actualizado."_
+7. Actualizar `status.md`: `contexto=done`
+8. Reportar: _"✅ Contexto del proyecto actualizado y commiteado."_
 
 **IMPORTANTE**: `PROJECT_CONTEXT.md` es la memoria viva del proyecto.
 Cualquier agente o desarrollador nuevo debe poder leer este archivo y entender el estado completo del proyecto sin leer nada más.
@@ -51,4 +62,5 @@ Cualquier agente o desarrollador nuevo debe poder leer este archivo y entender e
 ## Prohibido
 - Implementar código
 - Modificar ADRs o Contracts activos
-- Hacer commits sin autorización del líder
+- Arrancar antes de que el líder haya aprobado la implementación
+- **Crear PRs o hacer merge**

@@ -252,6 +252,6 @@ php artisan queue:work
 - **Multi-tenancy**: toda operación de datos debe respetar `empresa_id` + `TenantScope` + `TenantHelper::current()`
 - **i18n**: todo texto visible (UI, emails, validaciones) debe estar en `es.json` Y `en.json` — nunca hardcodear
 - **Permisos en menú**: si una ruta tiene middleware `permission:X`, el item de menú debe tener `can('X')` — no basta proteger solo el backend
-- **Commits**: nunca sin autorización explícita de Angel — flujo: Implementar → Reportar → Esperar revisión → Esperar "aprobado para commit" → Commit
+- **Commits**: los agentes commitean solos en la branch del ADR — el gate está en el PR y el merge. Flujo: Implementar → Commitear → QA → Reportar → Revisión de Angel → Aprobación → Docs → Angel autoriza el PR → Angel mergea
 - **Branch**: una por ADR completo — formato `feature/adrXXX-nombre-completo`
 - **Emails con queue**: capturar locale en constructor con `$this->locale(App::getLocale())`

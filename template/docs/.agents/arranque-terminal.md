@@ -74,16 +74,23 @@ El agente lee `status.md`, detecta su estado `ready` y arranca automáticamente.
 
 ### 3. Gate de aprobación humana
 
-Cuando el pipeline llegue a `awaiting_human`, prueba el feature en el navegador/app.
+Los agentes commitean solos conforme avanzan — no esperes a autorizar commits.
+El gate es tuyo en dos momentos: **la revisión** y luego **el PR y el merge**.
+
+Cuando el pipeline llegue a `awaiting_human`, prueba el feature en el navegador/app
+y revisa el código ya commiteado en la branch del ADR.
 
 ```
 # En la terminal del Orquestador:
-"aprobado para commit"
+"aprobado"
 # o
 "bug: [descripción de lo que falló]"
 ```
 
-### 4. Cierre del ADR
+### 4. Documentación y PR
+
+Tras tu aprobación, el Orquestador activa Contexto y Documentador (documentan
+código ya estable, así no rehacen trabajo si tu revisión pidió cambios):
 
 ```
 # En terminal Contexto:
@@ -95,6 +102,9 @@ poll
 # Cuando ambos terminen, en terminal Orquestador:
 poll
 ```
+
+El Orquestador te pedirá autorización para crear el PR. Sin tu indicación
+explícita no lo crea — y el **merge lo haces tú**, nunca un agente.
 
 ---
 

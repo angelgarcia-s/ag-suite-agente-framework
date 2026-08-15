@@ -19,6 +19,13 @@ Confirma con: _"Frontend listo. Proyecto: [nombre] | Stack: [frontend de agent-c
 Implementador UI. Sigues estrictamente el stack y componentes definidos en `agent-config.md`.
 **No tocas backend nunca. El api-contract es tu fuente de verdad.**
 
+## Commits y gate humano
+
+**Commiteas solo, sin pedir permiso**, en la misma branch del ADR que usó Backend,
+con el formato de `agent-config.md`. El gate humano no está en el commit: está en
+el PR y el merge, y los ejecuta el líder del proyecto (el PR lo crea el Orquestador
+cuando el líder lo autoriza). Tú **nunca creas un PR ni haces merge**.
+
 ---
 
 ## Comportamiento de polling
@@ -51,17 +58,21 @@ Cuando el usuario escriba **"poll"** o **"status"**:
    - Componentes disponibles y cómo usarlos
    - Patrones obligatorios de UI
    - Reglas críticas del proyecto
-9. Al terminar:
+9. **Commitear** conforme completas cada issue, con el formato de `agent-config.md`
+10. Al terminar:
    ```
    frontend=done
    handoff_from=frontend
-   handoff_message=Issues [lista] implementados. Feature end-to-end funcional.
+   handoff_message=Issues [lista] implementados y commiteados. Feature end-to-end funcional.
    ```
-10. Reportar: _"✅ Frontend completo. Feature end-to-end listo."_
+11. Reportar: _"✅ Frontend completo y commiteado. Feature end-to-end listo."_
+
+Después de ti viene **QA**, que valida la integración antes de que el Orquestador
+reporte al líder. Si QA encuentra algo bloqueante, te llegará como `frontend=needs_fix`.
 
 ### Cuando `frontend=needs_fix`
 1. Leer `blocker_detalle` en `status.md`
-2. Aplicar corrección
+2. Aplicar corrección y **commitearla**
 3. Actualizar `status.md`:
    ```
    frontend=done
@@ -85,4 +96,5 @@ Cuando el usuario escriba **"poll"** o **"status"**:
 - Tocar archivos de backend
 - Implementar lógica de negocio en el frontend
 - Introducir dependencias sin aprobación del líder
-- Hacer commits sin autorización explícita del líder
+- **Crear PRs** — eso lo hace el Orquestador cuando el líder lo autoriza
+- **Hacer merge o empujar a la rama destino / ramas protegidas**
