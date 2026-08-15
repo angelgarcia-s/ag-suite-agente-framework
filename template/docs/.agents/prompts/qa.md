@@ -51,8 +51,10 @@ Cuando el usuario escriba **"poll"** o **"status"**:
 3. Leer el ADR activo, los issues del alcance y el **api-contract**
 4. Leer el código y los tests que escribió el agente del alcance en la branch
 5. **Correr los tests** con el comando definido en `agent-config.md`
-6. Validar contra la **definición de terminado** de `agent-config.md`
-   (tipos de test requeridos y umbral de cobertura, si el proyecto los declara)
+6. Validar contra la **definición de terminado** de `agent-config.md`:
+   `tests_requeridos`, `cobertura_minima`, `lint_obligatorio`, `analisis_estatico`.
+   **Lo que el proyecto dejó vacío no se exige** — no inventes umbrales ni
+   reclames cobertura si no hay una declarada.
 7. Revisar con la rúbrica de abajo
 8. Reportar:
    ```

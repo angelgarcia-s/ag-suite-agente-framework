@@ -57,6 +57,38 @@ Ejemplos de commits:
 
 ---
 
+## 🌲 Git y ramas
+
+```
+branch_target=main
+branch_formato=feature/adrXXX-nombre-completo
+```
+
+---
+
+## 👥 Roles activos
+
+```
+rol_backend=si
+rol_frontend=si
+rol_qa=si
+rol_contexto=si
+rol_documentador=si
+```
+
+---
+
+## ✅ Definición de terminado
+
+```
+tests_requeridos=unitarios, integración
+cobertura_minima=
+lint_obligatorio=si
+analisis_estatico=no
+```
+
+---
+
 ## 📖 Lectura obligatoria por rol
 
 ### Orquestador — leer al arrancar:

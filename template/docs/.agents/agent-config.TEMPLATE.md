@@ -53,6 +53,46 @@ idioma_codigo=           # español | english (nombres de variables, funciones, 
 
 ---
 
+## 🌲 Git y ramas
+
+```
+branch_target=           # rama destino del PR: main | develop | otra
+                         # si lo dejas vacío se detecta la rama por defecto del remoto
+branch_formato=          # ej: feature/adrXXX-nombre-corto
+```
+
+---
+
+## 👥 Roles activos
+
+Desactiva los roles que no apliquen a tu proyecto. Un CLI, una API o una
+librería sin interfaz normalmente corren con `frontend=no`.
+El Orquestador salta los roles en `no` y no los espera en `status.md`.
+
+```
+rol_backend=si           # si | no
+rol_frontend=si          # si | no  — pon 'no' en proyectos sin UI
+rol_qa=si                # si | no  — desactivarlo elimina el gate de calidad
+rol_contexto=si          # si | no
+rol_documentador=si      # si | no
+```
+
+---
+
+## ✅ Definición de terminado
+
+Qué exige este proyecto para dar un issue por terminado. Lo usa QA como
+criterio de validación; lo que dejes vacío no se exige.
+
+```
+tests_requeridos=        # ej: unitarios, integración, e2e (vacío = sin exigencia)
+cobertura_minima=        # ej: 80 (vacío = sin umbral; no inventes uno)
+lint_obligatorio=        # si | no
+analisis_estatico=       # si | no
+```
+
+---
+
 ## 📖 Lectura obligatoria por rol
 
 ### Orquestador — leer al arrancar:
