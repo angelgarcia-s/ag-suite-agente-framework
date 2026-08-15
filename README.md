@@ -32,6 +32,11 @@ Abre `docs/.agents/agent-config.md` y llena:
 
 Este archivo es lo que hace el framework inteligente para tu proyecto específico.
 
+**Una sola fuente de verdad.** `CLAUDE.md` y `AGENTS.md` se instalan como
+punteros: no llevan stack ni reglas de negocio, solo apuntan a `agent-config.md`.
+No copies contexto en ellos — dos fuentes de verdad se desincronizan y terminas
+con placeholders a medio llenar.
+
 ---
 
 ## Modos de uso
@@ -93,6 +98,8 @@ Tu `agent-config.md` y `status.md` nunca se tocan.
 
 ```
 proyecto/
+  CLAUDE.md                    ← puntero (Claude Code) — sin contexto inline
+  AGENTS.md                    ← puntero (convención abierta)
   Makefile
   scripts/
     iniciar-agente.sh

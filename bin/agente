@@ -676,6 +676,11 @@ cmd_init() {
         ok "agent-config.md"
     fi
 
+    # Punteros de arranque. _cp no pisa lo que ya existe: si el proyecto ya tiene
+    # un CLAUDE.md propio, se respeta y se avisa (ver 'agente doctor').
+    _cp "$SRC/CLAUDE.md"                                "$RUTA_PROYECTO/CLAUDE.md"
+    _cp "$SRC/AGENTS.md"                                "$RUTA_PROYECTO/AGENTS.md"
+
     _cp "$SRC/scripts/iniciar-agente.sh"                "$RUTA_PROYECTO/scripts/iniciar-agente.sh"
     _cp "$SRC/scripts/lanzar-agentes-iterm.applescript" "$RUTA_PROYECTO/scripts/lanzar-agentes-iterm.applescript"
     _cp "$SRC/scripts/lanzar-agentes-terminal.sh"       "$RUTA_PROYECTO/scripts/lanzar-agentes-terminal.sh"

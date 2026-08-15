@@ -78,6 +78,8 @@ cp "$FRAMEWORK_SRC/bin/agente" "$INSTALL_DIR/bin/agente"
 cp "$FRAMEWORK_SRC/template/docs/.agents/agent-config.TEMPLATE.md" "$INSTALL_DIR/template/docs/.agents/"
 cp "$FRAMEWORK_SRC/template/docs/.agents/status.md"                "$INSTALL_DIR/template/docs/.agents/"
 cp "$FRAMEWORK_SRC/template/Makefile"                              "$INSTALL_DIR/template/"
+cp "$FRAMEWORK_SRC/template/CLAUDE.md"                             "$INSTALL_DIR/template/"
+cp "$FRAMEWORK_SRC/template/AGENTS.md"                             "$INSTALL_DIR/template/"
 
 chmod +x "$INSTALL_DIR/bin/agente"
 chmod +x "$INSTALL_DIR/template/scripts/iniciar-agente.sh" 2>/dev/null
@@ -105,6 +107,18 @@ if [ -d "$RUTA_PROYECTO/docs/.agents" ]; then
 
     for script in iniciar-agente.sh lanzar-agentes-iterm.applescript lanzar-agentes-terminal.sh; do
         [ -d "$RUTA_PROYECTO/scripts" ] && cp "$FRAMEWORK_SRC/template/scripts/$script" "$RUTA_PROYECTO/scripts/$script"
+    done
+
+    # Punteros de arranque: se instalan solo si faltan. NO se sobrescriben —
+    # una instancia vieja puede tener un CLAUDE.md escrito a mano y pisarlo
+    # sería perder contenido del usuario.
+    for puntero in CLAUDE.md AGENTS.md; do
+        if [ -f "$RUTA_PROYECTO/$puntero" ]; then
+            skip "$puntero — ya existe (revísalo: debería ser un puntero, no contexto inline)"
+        else
+            cp "$FRAMEWORK_SRC/template/$puntero" "$RUTA_PROYECTO/$puntero"
+            ok "$puntero instalado"
+        fi
     done
     chmod +x "$RUTA_PROYECTO/scripts/iniciar-agente.sh" 2>/dev/null
     chmod +x "$RUTA_PROYECTO/scripts/lanzar-agentes-terminal.sh" 2>/dev/null
