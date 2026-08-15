@@ -56,6 +56,19 @@ skip()      { echo -e "  ${GRIS}⏭️  $1${RESET}"; }
 separador() { echo -e "${GRIS}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"; }
 linea_fina(){ echo -e "${GRIS}────────────────────────────────────────────────${RESET}"; }
 
+# Confirmación robusta. Lee de la terminal cuando la hay (para que funcione aun
+# si el script llegó por una tubería) y de stdin cuando no, para que se pueda
+# automatizar con 'echo s | agente ...'. Sin ninguna de las dos, no asume un sí.
+_confirmar() {
+    local prompt="$1" respuesta=""
+    if [ -e /dev/tty ] && [ -t 1 ]; then
+        read -p "$prompt" respuesta < /dev/tty 2>/dev/null || respuesta=""
+    else
+        read -p "$prompt" respuesta 2>/dev/null || respuesta=""
+    fi
+    [[ "$respuesta" == "s" || "$respuesta" == "S" ]]
+}
+
 tiene_claude() { command -v claude &>/dev/null; }
 tiene_iterm()  { osascript -e 'tell application "iTerm2" to version' &>/dev/null 2>&1; }
 
@@ -811,6 +824,206 @@ Genera el agent-config.md completo y actualizado. Empieza con: # agent-config.md
     echo ""
 }
 
+# ─── Actualizar ───────────────────────────────────────────────────────────────
+# Dos capas distintas, dos comandos distintos:
+#
+#   agente actualizar            → el framework GLOBAL (~/.ag-suite-agente-framework)
+#                                  se refresca desde GitHub. Requiere red.
+#   agente actualizar proyecto   → aplica el framework global YA instalado a este
+#                                  proyecto. No toca la red.
+#
+# Separarlas evita el problema de mezclarlas: antes, correr el actualizador desde
+# un directorio cualquiera podía instalar el framework donde no debía, y no había
+# forma de aplicar la misma versión a varios proyectos sin volver a descargar.
+
+REPO_URL_FRAMEWORK="https://github.com/angelgarcia-s/ag-suite-agente-framework"
+RAMA_FRAMEWORK="main"
+
+cmd_actualizar() {
+    local TMP_DIR SRC VERSION_ANTERIOR VERSION_NUEVA
+
+    echo ""
+    separador
+    echo -e "  ${NEGRITA}Actualizar el framework global${RESET}"
+    separador
+    echo ""
+    info "Destino: $RUTA_FRAMEWORK"
+    info "Este comando NO toca ningún proyecto."
+    echo ""
+
+    VERSION_ANTERIOR="$(_leer_version_framework)"
+    TMP_DIR="$(mktemp -d)"
+
+    info "Descargando la última versión..."
+    if command -v curl &>/dev/null; then
+        curl -fsSL "$REPO_URL_FRAMEWORK/archive/$RAMA_FRAMEWORK.zip" -o "$TMP_DIR/f.zip" || {
+            error "No se pudo descargar. ¿Hay conexión?"; rm -rf "$TMP_DIR"; exit 1; }
+    elif command -v wget &>/dev/null; then
+        wget -q "$REPO_URL_FRAMEWORK/archive/$RAMA_FRAMEWORK.zip" -O "$TMP_DIR/f.zip" || {
+            error "No se pudo descargar. ¿Hay conexión?"; rm -rf "$TMP_DIR"; exit 1; }
+    else
+        error "Se necesita curl o wget."; rm -rf "$TMP_DIR"; exit 1
+    fi
+
+    unzip -q "$TMP_DIR/f.zip" -d "$TMP_DIR"
+    SRC="$(find "$TMP_DIR" -maxdepth 1 -type d -name "*-$RAMA_FRAMEWORK" | head -1)"
+
+    if [ -z "$SRC" ] || [ ! -d "$SRC/template" ]; then
+        error "El paquete descargado no trae el template."
+        rm -rf "$TMP_DIR"; exit 1
+    fi
+    ok "Descargado"
+
+    # El template completo se reemplaza: todo lo del usuario vive en su proyecto,
+    # no aquí. Esta carpeta es solo la fuente de la que 'init' y 'actualizar
+    # proyecto' copian.
+    rm -rf "$RUTA_FRAMEWORK/template"
+    cp -r "$SRC/template" "$RUTA_FRAMEWORK/"
+    [ -f "$SRC/VERSION" ] && cp "$SRC/VERSION" "$RUTA_FRAMEWORK/VERSION"
+
+    # El CLI se está ejecutando desde este mismo archivo: se reemplaza con mv
+    # (renombre atómico) y no con cp, que truncaría el archivo que bash sigue
+    # leyendo y podría dejar la ejecución a medias.
+    cp "$SRC/bin/agente" "$RUTA_FRAMEWORK/bin/agente.nuevo"
+    chmod +x "$RUTA_FRAMEWORK/bin/agente.nuevo"
+    mv "$RUTA_FRAMEWORK/bin/agente.nuevo" "$RUTA_FRAMEWORK/bin/agente"
+
+    chmod +x "$RUTA_FRAMEWORK/template/scripts/"*.sh 2>/dev/null
+    rm -rf "$TMP_DIR"
+
+    VERSION_NUEVA="$(_leer_version_framework)"
+    ok "Framework global actualizado"
+    echo ""
+    if [ "$VERSION_ANTERIOR" = "$VERSION_NUEVA" ]; then
+        info "Versión: $VERSION_NUEVA (sin cambios)"
+    else
+        echo -e "  ${NEGRITA}Versión: $VERSION_ANTERIOR → ${VERDE}$VERSION_NUEVA${RESET}"
+    fi
+    echo ""
+    separador
+    echo ""
+    if [ -f "$RUTA_AGENTS/agent-config.md" ]; then
+        info "Para aplicarlo a este proyecto:  ${VERDE}agente actualizar proyecto${RESET}"
+    else
+        info "Para aplicarlo a un proyecto, entra en él y corre:"
+        info "  ${VERDE}agente actualizar proyecto${RESET}"
+    fi
+    echo ""
+}
+
+# Aplica el framework global (ya instalado) a este proyecto. Sin red.
+cmd_actualizar_proyecto() {
+    local SRC="$RUTA_FRAMEWORK/template"
+    local CFG="$RUTA_AGENTS/agent-config.md"
+
+    echo ""
+    separador
+    echo -e "  ${NEGRITA}$(nombre_proyecto) — Actualizar la instancia${RESET}"
+    separador
+    echo ""
+
+    if [ ! -f "$CFG" ]; then
+        error "Aquí no hay un proyecto con el framework."
+        info "Estás en: $RUTA_PROYECTO"
+        info "Inicializa con 'agente init' o entra a la raíz del proyecto."
+        echo ""; exit 1
+    fi
+    if [ ! -d "$SRC" ]; then
+        error "No se encontró el template del framework en $RUTA_FRAMEWORK"
+        info "Corre primero: agente actualizar"
+        echo ""; exit 1
+    fi
+
+    info "Proyecto:  $RUTA_PROYECTO"
+    info "Framework: $RUTA_FRAMEWORK ($(_leer_version_framework))"
+    echo ""
+    echo -e "  ${NEGRITA}NO se sobrescribe (es tuyo):${RESET}"
+    echo -e "    ${GRIS}docs/.agents/agent-config.md${RESET}"
+    echo -e "    ${GRIS}docs/.agents/status.md${RESET}"
+    echo -e "    ${GRIS}docs/.agents/prompts/proyecto/*.md${RESET}"
+    echo -e "    ${GRIS}CLAUDE.md, AGENTS.md y Makefile${RESET}  ${GRIS}(solo se crean si faltan)${RESET}"
+    echo ""
+
+    local ADR_ACTIVA
+    ADR_ACTIVA="$(leer_status adr)"
+    if [ -n "$ADR_ACTIVA" ]; then
+        warn "Hay una ADR en curso: $ADR_ACTIVA"
+        echo -e "  ${GRIS}Los prompts y el flujo se reemplazan con trabajo a medias.${RESET}"
+        echo -e "  ${GRIS}Lo ideal es actualizar entre ADRs, con el pipeline limpio.${RESET}"
+        echo ""
+    fi
+
+    _confirmar "  ¿Continuar? (s/N): " || { echo "  Cancelado."; echo ""; exit 0; }
+    echo ""
+
+    # ── Prompts del núcleo (solo los .md de primer nivel) ──
+    mkdir -p "$RUTA_AGENTS/prompts"
+    local p
+    for p in "$SRC"/docs/.agents/prompts/*.md; do
+        [ -f "$p" ] && cp "$p" "$RUTA_AGENTS/prompts/"
+    done
+    ok "Prompts del núcleo actualizados"
+
+    # ── Carpeta de agentes de proyecto: el README sí, los prompts del usuario no ──
+    mkdir -p "$RUTA_AGENTS/prompts/proyecto"
+    cp "$SRC/docs/.agents/prompts/proyecto/README.md" "$RUTA_AGENTS/prompts/proyecto/" 2>/dev/null
+    skip "prompts/proyecto/*.md — tus agentes de proyecto, preservados"
+
+    # ── Reglas y guías ──
+    local d
+    for d in agentes.md arranque-terminal.md arranque-sesion.md agente-inicializador.md; do
+        cp "$SRC/docs/.agents/$d" "$RUTA_AGENTS/" 2>/dev/null
+    done
+    ok "Reglas y guías actualizadas"
+
+    # ── Scripts ──
+    if [ -d "$RUTA_SCRIPTS" ]; then
+        local s
+        for s in iniciar-agente.sh lanzar-agentes-iterm.applescript lanzar-agentes-terminal.sh ci-checks.sh; do
+            [ -f "$SRC/scripts/$s" ] && cp "$SRC/scripts/$s" "$RUTA_SCRIPTS/$s"
+        done
+        chmod +x "$RUTA_SCRIPTS/iniciar-agente.sh" "$RUTA_SCRIPTS/lanzar-agentes-terminal.sh" \
+                 "$RUTA_SCRIPTS/ci-checks.sh" 2>/dev/null
+        ok "Scripts actualizados"
+    fi
+
+    # ── Punteros y Makefile: solo si faltan (pueden estar personalizados) ──
+    local f
+    for f in CLAUDE.md AGENTS.md Makefile; do
+        if [ -f "$RUTA_PROYECTO/$f" ]; then
+            skip "$f — ya existe, se respeta"
+        elif [ -f "$SRC/$f" ]; then
+            cp "$SRC/$f" "$RUTA_PROYECTO/$f"; ok "$f instalado"
+        fi
+    done
+
+    # ── Workflow de CI: solo se refresca si el proyecto ya lo tiene ──
+    if [ -f "$RUTA_PROYECTO/.github/workflows/agentes-ci.yml" ]; then
+        cp "$SRC/.github/workflows/agentes-ci.yml" "$RUTA_PROYECTO/.github/workflows/agentes-ci.yml"
+        ok "Workflow de CI actualizado"
+    fi
+
+    # ── Registrar la versión aplicada (única línea que se escribe en la config) ──
+    local V TMP_CFG
+    V="$(_leer_version_framework)"
+    if [ "$V" != "desconocida" ]; then
+        if grep -q "^framework_version=" "$CFG"; then
+            TMP_CFG="$(mktemp)"
+            sed "s|^framework_version=.*|framework_version=$V|" "$CFG" > "$TMP_CFG" && mv "$TMP_CFG" "$CFG"
+        else
+            printf '\n---\n\n## 🏷 Versión del framework\n\n```\nframework_version=%s\n```\n' "$V" >> "$CFG"
+        fi
+        ok "Versión registrada: $V"
+    fi
+
+    echo ""
+    separador
+    echo ""
+    info "Revisa lo que falta con: ${VERDE}agente doctor${RESET}"
+    [ -n "$ADR_ACTIVA" ] && info "Y actualiza el esquema con: ${VERDE}agente migrar-status${RESET}"
+    echo ""
+}
+
 # ─── Migrar status.md ─────────────────────────────────────────────────────────
 # El updater preserva status.md porque es el estado vivo del pipeline, pero el
 # esquema del núcleo evoluciona. Esto reconstruye el archivo con la estructura
@@ -886,8 +1099,7 @@ cmd_migrar_status() {
 
     echo -e "  ${GRIS}Se guardará un respaldo en status.md.bak${RESET}"
     echo ""
-    read -p "  ¿Migrar? (s/N): " C
-    [[ "$C" != "s" && "$C" != "S" ]] && { echo "  Cancelado."; echo ""; return 0; }
+    _confirmar "  ¿Migrar? (s/N): " || { echo "  Cancelado."; echo ""; return 0; }
     echo ""
 
     cp "$ACTUAL" "$ACTUAL.bak"
@@ -1133,6 +1345,10 @@ cmd_help() {
     echo -e "  ${VERDE}init${RESET}                Inicializa el framework en este proyecto"
     echo -e "  ${VERDE}doctor${RESET}              Compara tu instancia con el framework y reporta lo que falta"
     echo -e "  ${VERDE}migrar-status${RESET}       Actualiza el esquema de status.md conservando tus valores"
+    echo ""
+    echo -e "  ${NEGRITA}Actualización${RESET}  ${GRIS}(dos capas distintas)${RESET}"
+    echo -e "  ${VERDE}actualizar${RESET}            Framework global desde GitHub ${GRIS}(no toca proyectos)${RESET}"
+    echo -e "  ${VERDE}actualizar proyecto${RESET}   Aplica el framework global a este proyecto ${GRIS}(sin red)${RESET}"
     echo -e "  ${VERDE}dashboard${RESET}           Monitoreo del pipeline con notificaciones (solo observa)"
     echo -e "  ${VERDE}status${RESET}              Estado rápido del pipeline"
     echo -e "  ${VERDE}reset${RESET}               Limpia status.md después de merge"
@@ -1172,8 +1388,7 @@ cmd_reset() {
         warn "Esto limpiará status.md completamente."
         echo -e "  ${GRIS}Úsalo solo después de merge o para empezar limpio.${RESET}"
         echo ""
-        read -p "  ¿Continuar? (s/N): " C
-        [[ "$C" != "s" && "$C" != "S" ]] && { echo "  Cancelado."; echo ""; exit 0; }
+        _confirmar "  ¿Continuar? (s/N): " || { echo "  Cancelado."; echo ""; exit 0; }
     fi
 
     # El reset es la única reescritura completa permitida de status.md: solo
@@ -1321,6 +1536,13 @@ case "${1:-start}" in
     init)           cmd_init ;;
     doctor)         cmd_doctor ;;
     migrar-status)  cmd_migrar_status ;;
+    actualizar)
+        case "${2:-}" in
+            proyecto|instancia) cmd_actualizar_proyecto ;;
+            "")                 cmd_actualizar ;;
+            *) error "Uso: agente actualizar [proyecto]"; exit 1 ;;
+        esac
+        ;;
     dashboard)      cmd_dashboard ;;
     status)         cmd_status ;;
     reset)          cmd_reset ;;

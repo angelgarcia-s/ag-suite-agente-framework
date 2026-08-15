@@ -1,7 +1,10 @@
 #!/bin/bash
 
 # AG Suite Agent Framework — Instalador
-# Uso: curl -fsSL https://raw.githubusercontent.com/angelgarcia-s/ag-suite-agente-framework/main/instalar.sh | bash
+# Uso: bash <(curl -fsSL https://raw.githubusercontent.com/angelgarcia-s/ag-suite-agente-framework/main/instalar.sh)
+#
+# La forma "curl ... | bash" también funciona: la confirmación se lee de
+# /dev/tty, no de stdin (que ahí lo ocupa el propio script).
 
 set -e
 
