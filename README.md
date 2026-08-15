@@ -61,13 +61,18 @@ Ver: `docs/.agents/arranque-sesion.md`
 1. Tú describes el feature al Orquestador
 2. Orquestador planea: ADR + issues + api-contract
 3. Tú confirmas el plan
-4. Backend implementa → Orquestador valida
-5. Frontend implementa → Orquestador valida integración
-6. Tú pruebas en el navegador/app
-7. "aprobado para commit"
-8. Contexto + Documentador cierran el ADR
-9. Commits + PR
+4. Backend implementa y commitea → QA valida → Orquestador valida
+5. Frontend implementa y commitea → QA valida → Orquestador valida integración
+6. Orquestador valida contra el ADR y te reporta: listo para tu revisión
+7. Tú pruebas y revisas → "aprobado"
+8. Contexto + Documentador documentan y commitean (mismo branch, mismo PR)
+9. Tú autorizas → el Orquestador crea el PR
+10. Tú haces el merge
 ```
+
+**El gate humano está en el PR y el merge, no en cada commit.** Los agentes
+commitean solos en la branch del ADR; ningún agente crea un PR sin tu indicación
+explícita y **ningún agente hace merge**.
 
 ---
 

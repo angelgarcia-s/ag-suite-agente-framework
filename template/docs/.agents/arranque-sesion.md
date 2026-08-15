@@ -29,7 +29,10 @@ Ejecuta el pipeline completo cambiando de rol según el estado:
 
 Anuncia cada cambio de rol explícitamente.
 Actualiza status.md al terminar cada fase.
-Respeta los gates de aprobación humana — espera mi "aprobado para commit" antes de continuar.
+
+Commitea tu trabajo en la branch del ADR sin pedirme permiso.
+El gate es el PR y el merge: NO crees el PR hasta que yo te lo indique
+explícitamente, y NUNCA hagas el merge.
 ```
 
 ---
@@ -88,9 +91,19 @@ Regresando a modo Orquestador para validar...
 
 Cuando llega al gate humano, para y espera:
 ```
-🎯 Feature implementado y validado. Listo para que pruebes.
+🎯 Feature implementado, validado y commiteado. Listo para que lo revises.
 Esperando tu aprobación para continuar con Contexto y Documentador.
 ```
+
+Y más adelante, antes del PR:
+```
+📦 Código y documentación commiteados en la branch del ADR.
+¿Autorizas que cree el PR?
+```
+
+**El gate humano en sesión única.** Que un solo agente juegue todos los roles NO
+relaja el gate: commitea libremente, pero se detiene y espera tu indicación
+explícita antes de crear el PR, y nunca hace el merge.
 
 ---
 

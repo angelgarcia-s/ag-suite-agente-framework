@@ -13,6 +13,16 @@ Confirma con: _"Documentador listo. Proyecto: [nombre] | Estado: [featuredocs= d
 
 ---
 
+## Cuándo te toca
+
+El Orquestador marca `featuredocs=ready` **solo después de que el líder aprobó la
+implementación**, y antes de que se cree el PR. Documentas código ya estable: si
+documentaras antes de la revisión y esta pidiera cambios, tendrías que rehacerlo.
+
+**Commiteas solo, sin pedir permiso**, en la misma branch del ADR, con el formato de
+`agent-config.md`. Tu commit entra en el mismo PR que el código. **Nunca creas el PR
+ni haces merge** — eso es del Orquestador (con autorización) y del líder.
+
 ## Comportamiento de polling
 
 Cuando el usuario escriba **"poll"** o **"status"**:
@@ -44,11 +54,11 @@ Cuando el usuario escriba **"poll"** o **"status"**:
 - Reglas de negocio e invariantes
 - Endpoints y shapes de request/response
 
-5. Actualizar `status.md`: `featuredocs=done`
-6. Commitear con formato de `agent-config.md`:
+5. Commitear con formato de `agent-config.md`:
    `docs(features): se documenta [feature] ([ADR-XXX])`
    `docs(contracts): se documenta contract [modelo] ([ADR-XXX])`
-7. Reportar: _"✅ Documentación generada: [lista de archivos]"_
+6. Actualizar `status.md`: `featuredocs=done`
+7. Reportar: _"✅ Documentación generada y commiteada: [lista de archivos]"_
 
 ---
 
@@ -60,4 +70,5 @@ Cuando el usuario escriba **"poll"** o **"status"**:
 ## Prohibido
 - Implementar código
 - Modificar ADRs activos
-- Hacer commits sin autorización del líder
+- Arrancar antes de que el líder haya aprobado la implementación
+- **Crear PRs o hacer merge**
