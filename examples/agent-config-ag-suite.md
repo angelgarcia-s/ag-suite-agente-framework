@@ -279,6 +279,41 @@ php artisan queue:work
 
 ---
 
+## 🔌 Perfil OPT-IN — API REST con OpenAPI
+
+Aplica **solo al carril REST** (rutas de `api.php` con token, para apps y
+terceros). NO aplica al tráfico Inertia (props a páginas), cuya disciplina
+contract-first es aparte: DTOs tipados → tipos TS, sin OpenAPI.
+
+```
+rest_openapi=on
+spec_ubicacion=docs/api/v{N}/
+generador=Scramble
+generador_config=config/scramble.php
+diff_breaking=oasdiff
+cliente_tipado=on
+dictamen_reviewer=consultivo
+rondas_maximas=2
+trigger_agentes=recurso público nuevo, v2, o invocación manual sobre superficie existente
+```
+
+### Convenciones de plataforma de la API
+
+```
+api_auth=Bearer token (Sanctum)
+api_forma_errores=shape nativo de Laravel { "message", "errors" } — NO migrar a problem+json
+api_paginacion=shape nativo del paginador de Laravel
+api_versionado=/v{N} en URL; v1 estable, breaking sube a v2, v1 con soporte >=12 meses, deprecaciones intra-v1 con header Sunset >=90 días (ADR-030)
+api_scope_tenant=header X-Empresa-Id, presente solo en rutas con middleware tenant; un token puede operar sobre varias empresas (ADR-030)
+api_glosario=Tenant (tabla clientes) = la cuenta SaaS/billing; Empresa = la unidad real de aislamiento y lo que scopea X-Empresa-Id
+```
+
+⚠️ Endpoints con lógica dinámica (valores centinela en `role`, merge de catálogos,
+`permissions[]` condicionales) requieren pistas PHPDoc u overrides de schema: el
+generador no los infiere solo.
+
+---
+
 ## 🚨 Reglas críticas del proyecto
 
 - **Multi-tenancy**: toda operación de datos debe respetar `empresa_id` + `TenantScope` + `TenantHelper::current()`

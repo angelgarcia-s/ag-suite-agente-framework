@@ -666,6 +666,8 @@ cmd_init() {
     _cp "$SRC/docs/.agents/prompts/qa.md"           "$RUTA_AGENTS/prompts/qa.md"
     _cp "$SRC/docs/.agents/prompts/context.md"      "$RUTA_AGENTS/prompts/context.md"
     _cp "$SRC/docs/.agents/prompts/featuredocs.md"  "$RUTA_AGENTS/prompts/featuredocs.md"
+    _cp "$SRC/docs/.agents/prompts/api-architect.md"         "$RUTA_AGENTS/prompts/api-architect.md"
+    _cp "$SRC/docs/.agents/prompts/api-contract-reviewer.md" "$RUTA_AGENTS/prompts/api-contract-reviewer.md"
     _cp "$SRC/docs/.agents/prompts/proyecto/README.md" "$RUTA_AGENTS/prompts/proyecto/README.md"
     _cp "$SRC/docs/.agents/agentes.md"              "$RUTA_AGENTS/agentes.md"
     _cp "$SRC/docs/.agents/arranque-terminal.md"    "$RUTA_AGENTS/arranque-terminal.md"
