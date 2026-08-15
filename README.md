@@ -10,8 +10,10 @@ QA valida dos veces por ADR y es un paso obligatorio del pipeline.
 
 ## Instalación
 
+Solo la primera vez (después, se actualiza con `agente actualizar`):
+
 ```bash
-curl -fsSL https://raw.githubusercontent.com/angelgarcia-s/ag-suite-agente-framework/main/instalar.sh | bash
+bash <(curl -fsSL https://raw.githubusercontent.com/angelgarcia-s/ag-suite-agente-framework/main/instalar.sh)
 ```
 
 El instalador coloca el framework en `~/.ag-suite-agente-framework` y deja
@@ -107,11 +109,46 @@ actualizador nunca toca esa carpeta.
 
 Heredan las reglas de oro: commitean solos, no crean PRs y no mergean.
 
-## Actualizar el framework
+## Actualizar
+
+Hay **dos capas distintas**, y se actualizan por separado a propósito:
+
+```
+┌─ Framework global ──────────────────┐
+│  ~/.ag-suite-agente-framework       │   agente actualizar
+│  template/ + bin/ + VERSION         │   ← se baja de GitHub
+└─────────────┬───────────────────────┘
+              │  copia a cada proyecto
+              ▼
+┌─ Instancia (tu proyecto) ───────────┐
+│  docs/.agents/ + scripts/ + CLAUDE  │   agente actualizar proyecto
+│  + tu agent-config.md y status.md   │   ← sin red, desde el global
+└─────────────────────────────────────┘
+```
+
+### Actualizar el framework global
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/angelgarcia-s/ag-suite-agente-framework/main/actualizar.sh | bash
+agente actualizar
 ```
+
+Baja la última versión y refresca `~/.ag-suite-agente-framework`. **No toca
+ningún proyecto**, así que puedes correrlo desde donde estés.
+
+### Aplicarlo a un proyecto
+
+Desde la raíz del proyecto:
+
+```bash
+agente actualizar proyecto
+```
+
+Copia el framework global **ya instalado** a esa instancia. No usa red.
+
+**Por qué separado:** actualizas una vez y aplicas a los proyectos que quieras,
+cuando quieras, con la garantía de que todos reciben exactamente la misma
+versión. Y evita el accidente de instalar el framework en un directorio que
+solo pasaba por ahí.
 
 Trae los archivos del núcleo nuevos y actualiza los existentes, incluida la
 versión del framework, que queda registrada en tu instancia.
@@ -138,18 +175,18 @@ falten a tu Makefile. No modifica nada.
 
 ### Actualizar un proyecto ya avanzado
 
-Tus ADRs, issues, contracts, features y `PROJECT_CONTEXT.md` **no se tocan**: el
-updater solo entra a `docs/.agents/` y `scripts/`.
+Tus ADRs, issues, contracts, features y `PROJECT_CONTEXT.md` **no se tocan**:
+`agente actualizar proyecto` solo entra a `docs/.agents/` y `scripts/`.
 
 Dos cosas sí requieren atención:
 
 **1. Actualiza entre ADRs, no a media ADR.** Actualizar reemplaza los prompts y el
 flujo mientras hay trabajo en curso — y el flujo puede haber cambiado (por ejemplo,
-QA se volvió un paso obligatorio, y el gate pasó del commit al PR). El updater te
-avisa si detecta una ADR activa. Lo limpio es cerrar la ADR, mergear, correr
+QA se volvió un paso obligatorio, y el gate pasó del commit al PR).
+`agente actualizar proyecto` te avisa si detecta una ADR activa. Lo limpio es cerrar la ADR, mergear, correr
 `agente reset` y actualizar entonces.
 
-**2. Migra el esquema de `status.md`.** El updater **preserva** tu `status.md`
+**2. Migra el esquema de `status.md`.** La actualización **preserva** tu `status.md`
 porque es el estado vivo de tu pipeline, así que no recibe los campos que el núcleo
 agregó. Después de actualizar:
 
@@ -203,6 +240,8 @@ proyecto/
 ```bash
 agente              # launcher interactivo — punto de entrada
 agente init         # inicializa el framework en este proyecto
+agente actualizar   # actualiza el framework global desde GitHub
+agente actualizar proyecto   # aplica el framework global a este proyecto
 agente doctor       # compara tu instancia con el framework
 agente start iterm  # abre los 6 agentes en paneles de iTerm2
 agente start sesion # modo sesión única (Copilot, Cursor, cualquier LLM)
