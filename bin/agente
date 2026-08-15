@@ -811,6 +811,124 @@ Genera el agent-config.md completo y actualizado. Empieza con: # agent-config.md
     echo ""
 }
 
+# ─── Migrar status.md ─────────────────────────────────────────────────────────
+# El updater preserva status.md porque es el estado vivo del pipeline, pero el
+# esquema del núcleo evoluciona. Esto reconstruye el archivo con la estructura
+# nueva CONSERVANDO los valores actuales, para poder actualizar sin esperar a
+# cerrar la ADR en curso.
+cmd_migrar_status() {
+    local TEMPLATE="$RUTA_FRAMEWORK/template/docs/.agents/status.md"
+    local ACTUAL="$RUTA_AGENTS/status.md"
+
+    echo ""
+    separador
+    echo -e "  ${NEGRITA}$(nombre_proyecto) — Migrar status.md${RESET}"
+    separador
+    echo ""
+
+    if [ ! -f "$ACTUAL" ]; then
+        error "No hay status.md en este proyecto."
+        echo ""; exit 1
+    fi
+    if [ ! -f "$TEMPLATE" ]; then
+        error "No se encontró el status.md del framework."
+        echo ""; exit 1
+    fi
+
+    # ── Diferencias de esquema ──
+    local NUEVAS HUERFANAS
+    NUEVAS="$(comm -13 \
+        <(grep -oE '^[a-z_]+=' "$ACTUAL"   | tr -d '=' | sort -u) \
+        <(grep -oE '^[a-z_]+=' "$TEMPLATE" | tr -d '=' | sort -u))"
+    HUERFANAS="$(comm -23 \
+        <(grep -oE '^[a-z_]+=' "$ACTUAL"   | tr -d '=' | sort -u) \
+        <(grep -oE '^[a-z_]+=' "$TEMPLATE" | tr -d '=' | sort -u))"
+
+    if [ -z "$NUEVAS" ] && [ -z "$HUERFANAS" ]; then
+        ok "Tu status.md ya está en el esquema actual. Nada que migrar."
+        echo ""; separador; echo ""
+        return 0
+    fi
+
+    local ADR_ACTIVO
+    ADR_ACTIVO="$(leer_status adr)"
+    if [ -n "$ADR_ACTIVO" ]; then
+        warn "Hay una ADR activa: $ADR_ACTIVO"
+        info "Los valores actuales se conservan, pero si hay agentes trabajando"
+        info "en paralelo, ciérralos antes de migrar para que nadie escriba a la vez."
+        echo ""
+    fi
+
+    if [ -n "$NUEVAS" ]; then
+        echo -e "  ${NEGRITA}Campos que se agregarán${RESET} ${GRIS}(con su valor por defecto)${RESET}"
+        echo ""
+        local n
+        for n in $NUEVAS; do
+            echo -e "    ${VERDE}+${RESET} $n"
+        done
+        echo ""
+    fi
+
+    if [ -n "$HUERFANAS" ]; then
+        echo -e "  ${NEGRITA}Campos que ya no usa el núcleo${RESET} ${GRIS}(se eliminan)${RESET}"
+        echo ""
+        local h v
+        for h in $HUERFANAS; do
+            v="$(grep "^$h=" "$ACTUAL" | head -1 | cut -d= -f2-)"
+            if [ -n "$v" ]; then
+                echo -e "    ${ROJO}-${RESET} $h ${AMARILLO}= $v${RESET}  ${GRIS}← tiene valor${RESET}"
+            else
+                echo -e "    ${ROJO}-${RESET} $h ${GRIS}(vacío)${RESET}"
+            fi
+        done
+        echo ""
+    fi
+
+    echo -e "  ${GRIS}Se guardará un respaldo en status.md.bak${RESET}"
+    echo ""
+    read -p "  ¿Migrar? (s/N): " C
+    [[ "$C" != "s" && "$C" != "S" ]] && { echo "  Cancelado."; echo ""; return 0; }
+    echo ""
+
+    cp "$ACTUAL" "$ACTUAL.bak"
+
+    # Reconstruir desde la plantilla, conservando los valores que ya existen.
+    # Si una clave no existe en la instancia, se queda el valor por defecto de
+    # la plantilla (por eso no se puede simplemente vaciar todo).
+    local NUEVO CLAVE
+    NUEVO="$(mktemp)"
+    while IFS= read -r linea; do
+        if echo "$linea" | grep -qE '^[a-z_]+='; then
+            CLAVE="$(echo "$linea" | cut -d= -f1)"
+            if grep -q "^$CLAVE=" "$ACTUAL"; then
+                grep "^$CLAVE=" "$ACTUAL" | head -1
+            else
+                echo "$linea"
+            fi
+        else
+            echo "$linea"
+        fi
+    done < "$TEMPLATE" > "$NUEVO"
+
+    # Conservar la bitácora: son eventos históricos, append-only por definición.
+    local BITACORA
+    BITACORA="$(grep -E '^\[' "$ACTUAL" || true)"
+    if [ -n "$BITACORA" ]; then
+        echo "$BITACORA" >> "$NUEVO"
+    fi
+
+    mv "$NUEVO" "$ACTUAL"
+
+    ok "status.md migrado al esquema actual"
+    [ -n "$BITACORA" ] && ok "Bitácora conservada ($(echo "$BITACORA" | wc -l | xargs) entradas)"
+    ok "Respaldo en docs/.agents/status.md.bak"
+    echo ""
+    info "Revisa el archivo antes de seguir con la ADR."
+    echo ""
+    separador
+    echo ""
+}
+
 # ─── Doctor ───────────────────────────────────────────────────────────────────
 # La instancia preserva su agent-config.md, así que nunca ve las claves que el
 # núcleo agrega con el tiempo. Doctor las reporta SIN tocar los valores del
@@ -926,6 +1044,60 @@ cmd_doctor() {
         info "Corre 'actualizar.sh' para traerlos."
     fi
 
+    # ── Esquema de status.md ──
+    # El updater lo preserva (es estado vivo), así que no recibe los campos que
+    # el núcleo agrega. Sin este aviso, el desfase se descubre a media ADR.
+    local TPL_STATUS="$RUTA_FRAMEWORK/template/docs/.agents/status.md"
+    if [ -f "$TPL_STATUS" ] && [ -f "$RUTA_AGENTS/status.md" ]; then
+        local ST_NUEVAS ST_HUERFANAS
+        ST_NUEVAS="$(comm -13 \
+            <(grep -oE '^[a-z_]+=' "$RUTA_AGENTS/status.md" | tr -d '=' | sort -u) \
+            <(grep -oE '^[a-z_]+=' "$TPL_STATUS"            | tr -d '=' | sort -u))"
+        ST_HUERFANAS="$(comm -23 \
+            <(grep -oE '^[a-z_]+=' "$RUTA_AGENTS/status.md" | tr -d '=' | sort -u) \
+            <(grep -oE '^[a-z_]+=' "$TPL_STATUS"            | tr -d '=' | sort -u))"
+
+        echo ""
+        linea_fina
+        echo ""
+        echo -e "  ${NEGRITA}Esquema de status.md${RESET}"
+        echo ""
+        if [ -z "$ST_NUEVAS" ] && [ -z "$ST_HUERFANAS" ]; then
+            ok "Al día con el esquema del núcleo."
+        else
+            [ -n "$ST_NUEVAS" ] && {
+                warn "Faltan $(echo "$ST_NUEVAS" | wc -l | xargs) campo(s) del esquema nuevo:"
+                echo "$ST_NUEVAS" | tr '\n' ' ' | sed 's/^/      /'; echo ""
+            }
+            [ -n "$ST_HUERFANAS" ] && {
+                echo -e "  ${GRIS}Campos que el núcleo ya no usa: $(echo "$ST_HUERFANAS" | tr '\n' ' ')${RESET}"
+            }
+            echo ""
+            info "Corre 'agente migrar-status' — conserva tus valores y respalda el archivo."
+        fi
+    fi
+
+    # ── Makefile vs roles activos ──
+    # El Makefile del proyecto se preserva (puede estar personalizado), así que
+    # nunca gana los targets de roles nuevos.
+    if [ -f "$RUTA_PROYECTO/Makefile" ]; then
+        local ROL SIN_TARGET=""
+        for ROL in orquestador backend frontend qa contexto documentador; do
+            grep -q "^$ROL:" "$RUTA_PROYECTO/Makefile" || SIN_TARGET="$SIN_TARGET $ROL"
+        done
+        if [ -n "$SIN_TARGET" ]; then
+            echo ""
+            linea_fina
+            echo ""
+            echo -e "  ${NEGRITA}Makefile${RESET}"
+            echo ""
+            warn "Tu Makefile no tiene target para:$SIN_TARGET"
+            info "Se preserva a propósito por si lo personalizaste."
+            info "Usa 'agente run <rol>' o copia el target desde:"
+            info "$RUTA_FRAMEWORK/template/Makefile"
+        fi
+    fi
+
     # ── CLAUDE.md puntero ──
     if [ -f "$RUTA_PROYECTO/CLAUDE.md" ]; then
         local LINEAS
@@ -960,6 +1132,7 @@ cmd_help() {
     echo -e "  ${NEGRITA}Pipeline${RESET}"
     echo -e "  ${VERDE}init${RESET}                Inicializa el framework en este proyecto"
     echo -e "  ${VERDE}doctor${RESET}              Compara tu instancia con el framework y reporta lo que falta"
+    echo -e "  ${VERDE}migrar-status${RESET}       Actualiza el esquema de status.md conservando tus valores"
     echo -e "  ${VERDE}dashboard${RESET}           Monitoreo del pipeline con notificaciones (solo observa)"
     echo -e "  ${VERDE}status${RESET}              Estado rápido del pipeline"
     echo -e "  ${VERDE}reset${RESET}               Limpia status.md después de merge"
@@ -1147,6 +1320,7 @@ case "${1:-start}" in
     sesion)         cmd_sesion ;;
     init)           cmd_init ;;
     doctor)         cmd_doctor ;;
+    migrar-status)  cmd_migrar_status ;;
     dashboard)      cmd_dashboard ;;
     status)         cmd_status ;;
     reset)          cmd_reset ;;

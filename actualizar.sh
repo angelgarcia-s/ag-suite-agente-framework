@@ -51,6 +51,22 @@ echo -e "    ${GRIS}CLAUDE.md y AGENTS.md${RESET}             (solo se crean si 
 echo ""
 warn "Todo lo demás del núcleo se actualiza a la versión nueva."
 echo ""
+
+# Actualizar a media ADR cambia las reglas bajo los pies de los agentes: los
+# prompts y el flujo se reemplazan mientras hay trabajo en curso. Avisar antes.
+ADR_EN_CURSO="$(grep '^adr=' "$(pwd)/docs/.agents/status.md" 2>/dev/null | head -1 | cut -d= -f2 | xargs)"
+if [ -n "$ADR_EN_CURSO" ]; then
+    echo -e "  ${AMARILLO}${NEGRITA}⚠️  Hay una ADR en curso: $ADR_EN_CURSO${RESET}"
+    echo ""
+    echo -e "  Actualizar ahora reemplaza los prompts y el flujo mientras hay trabajo"
+    echo -e "  a medias. Lo ideal es actualizar ${NEGRITA}entre ADRs${RESET}, con el pipeline limpio."
+    echo ""
+    echo -e "  Si decides seguir:"
+    echo -e "    ${GRIS}• cierra las terminales de los agentes antes de continuar${RESET}"
+    echo -e "    ${GRIS}• corre 'agente migrar-status' después, para actualizar el esquema${RESET}"
+    echo -e "    ${GRIS}• revisa el flujo nuevo: el gate y los pasos pueden haber cambiado${RESET}"
+    echo ""
+fi
 read -p "  ¿Continuar? (s/N): " CONTINUAR
 [[ "$CONTINUAR" != "s" && "$CONTINUAR" != "S" ]] && { echo "  Cancelado."; exit 0; }
 echo ""

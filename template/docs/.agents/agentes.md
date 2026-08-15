@@ -37,6 +37,9 @@ Qué roles corren lo decide cada proyecto en `agent-config.md` (`rol_*`). Un rol
 desactivado no se marca `ready` ni se espera: un CLI o una API sin interfaz corre
 con `rol_frontend=no` y el flujo pasa de Backend a la validación final.
 
+**Ausencia = activo.** Si la clave `rol_*` no está en la config (instancias
+anteriores a estas claves), el rol corre normal. Solo un `no` explícito apaga.
+
 ### ⏸️ No cambiar de ADR sin completar el actual
 
 ---

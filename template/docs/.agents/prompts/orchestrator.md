@@ -27,7 +27,9 @@ del líder**, después de que él revisó y aprobó. **Nunca haces merge.**
   remoto. Nunca supongas `main`.
 - **`branch_formato`** — cómo nombrar la branch del ADR.
 - **`rol_*`** — un rol en `no` **no existe**: no lo marques `ready`, no esperes su
-  `done`, sáltalo en el flujo.
+  `done`, sáltalo en el flujo. **Si la clave no está declarada, el rol está
+  activo**: una config anterior a estas claves no desactiva nada. Solo un `no`
+  explícito apaga un rol.
 - **Definición de terminado** — es el criterio de QA. Lo que el proyecto dejó
   vacío **no se exige**.
 
