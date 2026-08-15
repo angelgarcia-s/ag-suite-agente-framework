@@ -101,7 +101,7 @@ _construir_dashboard() {
     local out=""
 
     local NOMBRE ADR TITULO BRANCH INICIADO
-    local ORCH BE FE CTX FDOCS
+    local ORCH BE FE QA CTX FDOCS
     local BLOCKER_AG BLOCKER_DET HANDOFF_MSG APROBACION
     local BE_ISSUES FE_ISSUES COMPLETADOS
 
@@ -113,6 +113,7 @@ _construir_dashboard() {
     ORCH="$(leer_status orchestrator)"
     BE="$(leer_status backend)"
     FE="$(leer_status frontend)"
+    QA="$(leer_status qa)"
     CTX="$(leer_status contexto)"
     FDOCS="$(leer_status featuredocs)"
     BLOCKER_AG="$(leer_status blocker_agente)"
@@ -171,6 +172,7 @@ _construir_dashboard() {
     out+="$(printf "  🧠 %-14s " "Orquestador")$(icono_estado "$ORCH")\n"
     out+="$(printf "  ⚙️  %-14s " "Backend")$(icono_estado "$BE")\n"
     out+="$(printf "  🎨 %-14s " "Frontend")$(icono_estado "$FE")\n"
+    out+="$(printf "  🔍 %-14s " "QA")$(icono_estado "$QA")\n"
     out+="$(printf "  📋 %-14s " "Contexto")$(icono_estado "$CTX")\n"
     out+="$(printf "  📚 %-14s " "Documentador")$(icono_estado "$FDOCS")\n"
     out+="\n"
@@ -439,7 +441,7 @@ _launcher_start_iterm() {
 
     info "Abriendo todos los agentes en iTerm2 con paneles..."
     osascript "$RUTA_SCRIPTS/lanzar-agentes-iterm.applescript"
-    ok "5 agentes abiertos en iTerm2"
+    ok "6 agentes abiertos en iTerm2"
     echo ""
     read -p "  ¿Abrir dashboard ahora? (S/n): " VER_DASH
     [[ "$VER_DASH" != "n" && "$VER_DASH" != "N" ]] && cmd_dashboard
@@ -452,7 +454,7 @@ _launcher_start_terminal() {
     echo ""
     info "Abriendo todos los agentes en Terminal.app..."
     bash "$RUTA_SCRIPTS/lanzar-agentes-terminal.sh"
-    ok "5 agentes abiertos en Terminal.app"
+    ok "6 agentes abiertos en Terminal.app"
     echo ""
     read -p "  ¿Abrir dashboard ahora? (S/n): " VER_DASH
     [[ "$VER_DASH" != "n" && "$VER_DASH" != "N" ]] && cmd_dashboard
@@ -468,8 +470,9 @@ _launcher_agente_individual() {
     echo -e "  ${VERDE}[1]${RESET} 🧠 Orquestador"
     echo -e "  ${VERDE}[2]${RESET} ⚙️  Backend"
     echo -e "  ${VERDE}[3]${RESET} 🎨 Frontend"
-    echo -e "  ${VERDE}[4]${RESET} 📋 Contexto"
-    echo -e "  ${VERDE}[5]${RESET} 📚 Documentador"
+    echo -e "  ${VERDE}[4]${RESET} 🔍 QA"
+    echo -e "  ${VERDE}[5]${RESET} 📋 Contexto"
+    echo -e "  ${VERDE}[6]${RESET} 📚 Documentador"
     echo -e "  ${GRIS}[b]${RESET} ← Volver"
     echo ""
     read -p "  Agente: " AG
@@ -477,8 +480,9 @@ _launcher_agente_individual() {
         1) bash "$RUTA_SCRIPTS/iniciar-agente.sh" orquestador ;;
         2) bash "$RUTA_SCRIPTS/iniciar-agente.sh" backend ;;
         3) bash "$RUTA_SCRIPTS/iniciar-agente.sh" frontend ;;
-        4) bash "$RUTA_SCRIPTS/iniciar-agente.sh" contexto ;;
-        5) bash "$RUTA_SCRIPTS/iniciar-agente.sh" documentador ;;
+        4) bash "$RUTA_SCRIPTS/iniciar-agente.sh" qa ;;
+        5) bash "$RUTA_SCRIPTS/iniciar-agente.sh" contexto ;;
+        6) bash "$RUTA_SCRIPTS/iniciar-agente.sh" documentador ;;
         b|B) cmd_start ;;
         *) warn "Opción no válida."; sleep 1; _launcher_agente_individual ;;
     esac
@@ -495,6 +499,7 @@ _launcher_nueva_feature() {
 _launcher_continuar_adr() {
     local BE="$(leer_status backend)"
     local FE="$(leer_status frontend)"
+    local QA="$(leer_status qa)"
     local CTX="$(leer_status contexto)"
     local FDOCS="$(leer_status featuredocs)"
     local ORCH="$(leer_status orchestrator)"
@@ -503,12 +508,13 @@ _launcher_continuar_adr() {
     echo -e "  ${NEGRITA}Continuar $(leer_status adr)${RESET}"
     echo ""
 
-    for agente in orquestador backend frontend contexto documentador; do
+    for agente in orquestador backend frontend qa contexto documentador; do
         local estado
         case "$agente" in
             orquestador)  estado="$ORCH" ;;
             backend)      estado="$BE" ;;
             frontend)     estado="$FE" ;;
+            qa)           estado="$QA" ;;
             contexto)     estado="$CTX" ;;
             documentador) estado="$FDOCS" ;;
         esac
@@ -548,6 +554,7 @@ cmd_status() {
     printf "  🧠 %-14s " "Orquestador";  icono_estado "$(leer_status orchestrator)"; echo ""
     printf "  ⚙️  %-14s " "Backend";      icono_estado "$(leer_status backend)";      echo ""
     printf "  🎨 %-14s " "Frontend";     icono_estado "$(leer_status frontend)";     echo ""
+    printf "  🔍 %-14s " "QA";           icono_estado "$(leer_status qa)";           echo ""
     printf "  📋 %-14s " "Contexto";     icono_estado "$(leer_status contexto)";     echo ""
     printf "  📚 %-14s " "Documentador"; icono_estado "$(leer_status featuredocs)";  echo ""
 
@@ -640,6 +647,7 @@ cmd_init() {
     _cp "$SRC/docs/.agents/prompts/orchestrator.md" "$RUTA_AGENTS/prompts/orchestrator.md"
     _cp "$SRC/docs/.agents/prompts/backend.md"      "$RUTA_AGENTS/prompts/backend.md"
     _cp "$SRC/docs/.agents/prompts/frontend.md"     "$RUTA_AGENTS/prompts/frontend.md"
+    _cp "$SRC/docs/.agents/prompts/qa.md"           "$RUTA_AGENTS/prompts/qa.md"
     _cp "$SRC/docs/.agents/prompts/context.md"      "$RUTA_AGENTS/prompts/context.md"
     _cp "$SRC/docs/.agents/prompts/featuredocs.md"  "$RUTA_AGENTS/prompts/featuredocs.md"
     _cp "$SRC/docs/.agents/agentes.md"              "$RUTA_AGENTS/agentes.md"
@@ -768,11 +776,11 @@ cmd_help() {
     echo -e "  ${NEGRITA}Agentes${RESET}"
     echo -e "  ${VERDE}run${RESET} [rol]           Inicia un agente en esta terminal"
     echo ""
-    echo -e "  ${NEGRITA}Roles:${RESET} orquestador · backend · frontend · contexto · documentador"
+    echo -e "  ${NEGRITA}Roles:${RESET} orquestador · backend · frontend · qa · contexto · documentador"
     echo ""
     echo -e "  ${NEGRITA}Ejemplos${RESET}"
     echo -e "  ${GRIS}agente${RESET}                Abre el launcher interactivo"
-    echo -e "  ${GRIS}agente start iterm${RESET}    Abre 5 paneles en iTerm2"
+    echo -e "  ${GRIS}agente start iterm${RESET}    Abre 6 paneles en iTerm2"
     echo -e "  ${GRIS}agente start terminal${RESET} Abre 5 ventanas en Terminal.app"
     echo -e "  ${GRIS}agente start sesion${RESET}   Inicia modo sesión única (Copilot/Claude)"
     echo -e "  ${GRIS}agente dashboard${RESET}      Dashboard en terminal dedicada"
@@ -836,6 +844,11 @@ backend_mensaje=
 frontend=idle
 frontend_ts=
 frontend_mensaje=
+
+qa=idle
+qa_ts=
+qa_mensaje=
+qa_alcance=
 
 contexto=idle
 contexto_ts=

@@ -35,6 +35,7 @@ Claude arranca en cada terminal ya con su rol activo — no necesitas escribir n
 make orquestador
 make backend
 make frontend
+make qa
 make contexto
 make documentador
 ```

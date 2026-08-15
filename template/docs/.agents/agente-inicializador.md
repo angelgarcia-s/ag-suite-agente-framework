@@ -82,6 +82,7 @@ Identifica qué documentación existente es crítica para cada rol:
 - Archivos de arquitectura → Orquestador
 - Guías de backend, sistemas críticos → Backend
 - Guías de componentes, UI standards → Frontend
+- Guías de testing y criterios de calidad → QA
 
 ### Paso 6 — Generar agent-config.md
 
@@ -144,6 +145,9 @@ idioma_codigo=[español|english — detectado del código]
 
 ### Frontend — leer al arrancar:
 [archivos de guías frontend detectados]
+
+### QA — leer al arrancar:
+[guías de testing, criterios de aceptación o estándares de calidad detectados]
 
 ### Contexto — leer al arrancar:
 - docs/PROJECT_CONTEXT.md

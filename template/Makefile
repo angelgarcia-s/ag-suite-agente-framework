@@ -1,7 +1,7 @@
 # Sistema Multiagente — Makefile
 # Uso: make [comando]
 
-.PHONY: agentes agentes-terminal orquestador backend frontend contexto documentador ayuda
+.PHONY: agentes agentes-terminal orquestador backend frontend qa contexto documentador ayuda
 
 # ─── Lanzadores completos ────────────────────────────────────────────────────
 
@@ -21,6 +21,9 @@ backend: ## Inicia solo el Backend
 
 frontend: ## Inicia solo el Frontend
 	bash scripts/iniciar-agente.sh frontend
+
+qa: ## Inicia solo QA
+	bash scripts/iniciar-agente.sh qa
 
 contexto: ## Inicia solo el Contexto
 	bash scripts/iniciar-agente.sh contexto

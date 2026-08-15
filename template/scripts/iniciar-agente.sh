@@ -2,13 +2,13 @@
 
 # Sistema Multiagente — Arranque de un agente individual
 # Uso: ./scripts/iniciar-agente.sh [rol]
-# Roles válidos: orquestador | backend | frontend | contexto | documentador
+# Roles válidos: orquestador | backend | frontend | qa | contexto | documentador
 
 RUTA_PROYECTO="$(cd "$(dirname "$0")/.." && pwd)"
 ROL="$1"
 
 if [ -z "$ROL" ]; then
-    echo "❌ Uso: ./scripts/iniciar-agente.sh [orquestador|backend|frontend|contexto|documentador]"
+    echo "❌ Uso: ./scripts/iniciar-agente.sh [orquestador|backend|frontend|qa|contexto|documentador]"
     exit 1
 fi
 
@@ -33,6 +33,10 @@ case "$ROL" in
         ETIQUETA="🎨 Frontend"
         ARCHIVO_PROMPT="docs/.agents/prompts/frontend.md"
         ;;
+    qa)
+        ETIQUETA="🔍 QA"
+        ARCHIVO_PROMPT="docs/.agents/prompts/qa.md"
+        ;;
     contexto)
         ETIQUETA="📋 Contexto"
         ARCHIVO_PROMPT="docs/.agents/prompts/context.md"
@@ -43,7 +47,7 @@ case "$ROL" in
         ;;
     *)
         echo "❌ Rol desconocido: $ROL"
-        echo "Roles válidos: orquestador | backend | frontend | contexto | documentador"
+        echo "Roles válidos: orquestador | backend | frontend | qa | contexto | documentador"
         exit 1
         ;;
 esac

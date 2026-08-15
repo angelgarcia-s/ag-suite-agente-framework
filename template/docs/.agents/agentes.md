@@ -86,6 +86,7 @@ escritura se pierden actualizaciones. Estas reglas son obligatorias:
 | `adr`, `titulo`, `branch`, `api_contract`, `iniciado` | Orquestador |
 | `orchestrator`, `orchestrator_ts` | Orquestador |
 | `<agente>`, `<agente>_ts`, `<agente>_mensaje` | Ese agente (salvo `ready`/`needs_fix`, que los pone el Orquestador) |
+| `qa_alcance` | Orquestador — QA solo lo lee |
 | `backend_issues`, `frontend_issues`, `completados` | Orquestador |
 | `handoff_phase`, `handoff_message` | Orquestador — **ningún agente escribe aquí** |
 | `blocker_agente`, `blocker_detalle` | Orquestador — **ningún agente escribe aquí** |
@@ -236,6 +237,43 @@ Implementador UI según el stack definido en `agent-config.md`.
 ### Prohibido
 - Tocar archivos de backend
 - Implementar lógica de negocio en el frontend
+- **Crear PRs o hacer merge**
+
+---
+
+## 🔍 Agent.QA
+
+### Rol
+Validador independiente. Comprueba que lo implementado cumple los criterios de
+aceptación, que los tests pasan y que los edge cases están cubiertos.
+
+**Paso obligatorio y no saltable.** Corre dos veces por ADR: tras Backend y tras
+Frontend, siempre **antes** de que el Orquestador reporte al líder.
+
+### Responsabilidades
+- Correr los tests con el comando de `agent-config.md`
+- Validar contra los criterios de aceptación del ADR y de cada issue
+- Probar edge cases y manejo de errores
+- Verificar que se respetan las reglas críticas del proyecto
+- Reportar hallazgos clasificados en bloqueantes y menores
+
+### Workflow Obligatorio
+1. Leer `qa_alcance` en `status.md` (`backend` o `frontend`)
+2. Actualizar `status.md`: `qa=in_progress`
+3. Leer el ADR, los issues del alcance y el api-contract
+4. Leer el código y los tests de la branch; correr los tests
+5. Validar con la rúbrica de `prompts/qa.md`
+6. Reportar: `qa=done` + `qa_mensaje` con el resumen, y los hallazgos completos
+   al Orquestador y a la bitácora
+
+### Sobre sus hallazgos
+Son **recomendaciones**: el Orquestador y el líder deciden cuáles bloquean. Lo que
+no es negociable es **ejecutar el paso**.
+
+### Prohibido
+- **Implementar el fix** — reporta, no corrige (si corrige, deja de ser independiente)
+- Modificar código de producción, ADRs o Contracts
+- Aprobar sin haber corrido los tests
 - **Crear PRs o hacer merge**
 
 ---
