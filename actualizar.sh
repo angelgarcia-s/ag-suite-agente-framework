@@ -29,7 +29,7 @@ echo -e "  ${NEGRITA}AG Suite Agent Framework — Actualizador${RESET}"
 linea
 echo ""
 warn "Solo se actualizarán archivos genéricos."
-warn "agent-config.md y status.md NO se tocarán."
+warn "El agent-config.md y el status.md de tu proyecto NO se tocarán."
 echo ""
 read -p "  ¿Continuar? (s/N): " CONTINUAR
 [[ "$CONTINUAR" != "s" && "$CONTINUAR" != "S" ]] && { echo "  Cancelado."; exit 0; }
@@ -70,6 +70,15 @@ cp "$FRAMEWORK_SRC/template/docs/.agents/arranque-sesion.md"      "$INSTALL_DIR/
 cp "$FRAMEWORK_SRC/template/docs/.agents/agente-inicializador.md" "$INSTALL_DIR/template/docs/.agents/"
 cp -r "$FRAMEWORK_SRC/template/scripts" "$INSTALL_DIR/template/"
 cp "$FRAMEWORK_SRC/bin/agente" "$INSTALL_DIR/bin/agente"
+
+# Plantillas base del framework — se refrescan SOLO en el install dir.
+# Son la fuente de la que 'agente init' copia en proyectos nuevos; sin esto
+# el install dir queda con la versión vieja e init instala plantillas obsoletas.
+# En el proyecto (más abajo) estos archivos NO se tocan nunca.
+cp "$FRAMEWORK_SRC/template/docs/.agents/agent-config.TEMPLATE.md" "$INSTALL_DIR/template/docs/.agents/"
+cp "$FRAMEWORK_SRC/template/docs/.agents/status.md"                "$INSTALL_DIR/template/docs/.agents/"
+cp "$FRAMEWORK_SRC/template/Makefile"                              "$INSTALL_DIR/template/"
+
 chmod +x "$INSTALL_DIR/bin/agente"
 chmod +x "$INSTALL_DIR/template/scripts/iniciar-agente.sh" 2>/dev/null
 chmod +x "$INSTALL_DIR/template/scripts/lanzar-agentes-terminal.sh" 2>/dev/null
@@ -77,8 +86,9 @@ chmod +x "$INSTALL_DIR/template/scripts/lanzar-agentes-terminal.sh" 2>/dev/null
 ok "Prompts actualizados"
 ok "Scripts actualizados"
 ok "CLI actualizado"
-skip "agent-config.md"
-skip "status.md"
+ok "Plantillas base actualizadas (agent-config.TEMPLATE.md, status.md, Makefile)"
+skip "agent-config.md del proyecto"
+skip "status.md del proyecto"
 skip "Makefile del proyecto"
 
 # ─── Actualizar en proyecto actual si tiene el framework ─────────────────────
